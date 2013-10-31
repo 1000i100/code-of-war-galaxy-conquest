@@ -1,5 +1,5 @@
 (function() {
-  var Galaxy, Game, GameUtil, Order, Planet, PlanetPopulation, PlanetSize, Point, Range, Ship, TurnMessage, TurnResult, UID, color, debugMessage, getNearestPlanet, getOrders, id, name, orderCall;
+  var Galaxy, Game, GameUtil, Order, Planet, PlanetPopulation, PlanetSize, Point, Range, Ship, TurnMessage, TurnResult, UID, color, croissanceParTour, debugMessage, getEasyestPlanet, getNearestPlanet, getOrders, id, name, naturalPopInXTurn, orderCall;
 
   name = "IA 1nomable";
 
@@ -10,6 +10,8 @@
   id = 0;
 
   orderCall = 0;
+
+  croissanceParTour = 5;
 
   /*
     @internal method
@@ -36,24 +38,32 @@
 
 
   getOrders = function(context) {
-    var myPlanet, myPlanets, otherPlanets, planet, result, _i, _j, _len, _len1;
+    var e, myPlanet, myPlanets, otherPlanets, populationGoal, result, target, _i, _len;
     result = [];
-    myPlanets = GameUtil.getPlayerPlanets(id, context);
-    otherPlanets = GameUtil.getEnnemyPlanets(id, context);
-    if (otherPlanets !== null && otherPlanets.length > 0) {
-      for (_i = 0, _len = myPlanets.length; _i < _len; _i++) {
-        myPlanet = myPlanets[_i];
-        if (myPlanet.population > otherPlanets.length) {
-          for (_j = 0, _len1 = otherPlanets.length; _j < _len1; _j++) {
-            planet = otherPlanets[_j];
-            result.push(new Order(myPlanet.id, planet.id, 1));
+    try {
+      myPlanets = GameUtil.getPlayerPlanets(id, context);
+      otherPlanets = GameUtil.getEnnemyPlanets(id, context);
+      if (otherPlanets !== null && otherPlanets.length > 0) {
+        for (_i = 0, _len = myPlanets.length; _i < _len; _i++) {
+          myPlanet = myPlanets[_i];
+          target = getEasyestPlanet(myPlanet, otherPlanets);
+          populationGoal = 1 + naturalPopInXTurn(target, GameUtil.getTravelNumTurn(myPlanet, target));
+          if (myPlanet.population > populationGoal) {
+            result.push(new Order(myPlanet.id, target.id, populationGoal));
           }
         }
       }
+      orderCall++;
+      debugMessage = 'Tour ' + orderCall;
+    } catch (_error) {
+      e = _error;
+      debugMessage += e;
     }
-    orderCall++;
-    debugMessage = 'Tour ' + orderCall + 'flottes adverses : ' + GameUtil.getEnnemyFleet(id, context).length;
     return result;
+  };
+
+  naturalPopInXTurn = function(planet, turn) {
+    return Math.min(planet.population + turn * croissanceParTour, PlanetPopulation.getMaxPopulation(planet.size));
   };
 
   getNearestPlanet = function(source, candidats) {
@@ -65,6 +75,21 @@
       dist = GameUtil.getDistanceBetween(new Point(source.x, source.y), new Point(element.x, element.y));
       if (currentDist > dist) {
         currentDist = dist;
+        result = element;
+      }
+    }
+    return result;
+  };
+
+  getEasyestPlanet = function(source, candidats) {
+    var difficulty, element, minDifficulty, result, _i, _len;
+    result = candidats[0];
+    minDifficulty = naturalPopInXTurn(candidats[0], GameUtil.getTravelNumTurn(source, candidats[0]));
+    for (_i = 0, _len = candidats.length; _i < _len; _i++) {
+      element = candidats[_i];
+      difficulty = naturalPopInXTurn(element, GameUtil.getTravelNumTurn(source, element));
+      if (minDifficulty > difficulty) {
+        minDifficulty = difficulty;
         result = element;
       }
     }

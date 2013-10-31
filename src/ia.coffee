@@ -7,6 +7,8 @@ id = 0 # Id de l'IA
 # variable maison
 orderCall = 0
 
+# constante de jeu connu :
+croissanceParTour = 5
 
 
 ###
@@ -28,29 +30,45 @@ orderCall = 0
 ###
 getOrders = (context) ->
 	result = []
-	myPlanets = GameUtil.getPlayerPlanets( id, context )
-	otherPlanets = GameUtil.getEnnemyPlanets(id, context)
-	if otherPlanets != null && otherPlanets.length > 0
-		for myPlanet in myPlanets
-			if myPlanet.population > otherPlanets.length
-				for planet in otherPlanets
-					result.push new Order( myPlanet.id, planet.id, 1 )
-#			nearest = getNearestPlanet(myPlanet,otherPlanets)
-#			populationGoal = nearest.population + GameUtil.getTravelNumTurn(myPlanet,nearest)*5 + 5
-#			if myPlanet.population > populationGoal
-#				result.push new Order( myPlanet.id, nearest.id, populationGoal )
-	orderCall++
-	debugMessage = 'Tour '+orderCall + 'flottes adverses : ' + GameUtil.getEnnemyFleet(id, context).length
-	return result;
+	try
+		myPlanets = GameUtil.getPlayerPlanets( id, context )
+		otherPlanets = GameUtil.getEnnemyPlanets(id, context)
+		if otherPlanets != null && otherPlanets.length > 0
+			for myPlanet in myPlanets
+	#			if myPlanet.population > otherPlanets.length
+	#				for planet in otherPlanets
+	#					result.push new Order( myPlanet.id, planet.id, 1 )
+				target = getEasyestPlanet(myPlanet,otherPlanets)
+				populationGoal = 1 + naturalPopInXTurn(target, GameUtil.getTravelNumTurn(myPlanet,target))
+				if myPlanet.population > populationGoal
+					result.push new Order( myPlanet.id, target.id, populationGoal )
+		orderCall++
+		debugMessage = 'Tour '+orderCall
+		#debugMessage+= ' planete attr : '+naturalPopInXTurn(myPlanets[0],100)
+	catch e
+		debugMessage += e
+	return result
 
+naturalPopInXTurn = (planet, turn) ->
+	Math.min(planet.population + turn*croissanceParTour, PlanetPopulation.getMaxPopulation(planet.size))
 
-getNearestPlanet = ( source, candidats ) ->
+getNearestPlanet = (source, candidats) ->
 	result = candidats[ 0 ]
 	currentDist = GameUtil.getDistanceBetween( new Point( source.x, source.y ), new Point( result.x, result.y ) )
 	for element in candidats
 		dist = GameUtil.getDistanceBetween( new Point( source.x, source.y ), new Point( element.x, element.y ) )
 		if  currentDist > dist
 			currentDist = dist
+			result = element
+	return result
+
+getEasyestPlanet = (source, candidats) ->
+	result = candidats[0]
+	minDifficulty = naturalPopInXTurn candidats[0], GameUtil.getTravelNumTurn(source,candidats[0])
+	for element in candidats
+		difficulty = naturalPopInXTurn element, GameUtil.getTravelNumTurn(source,element)
+		if minDifficulty > difficulty
+			minDifficulty = difficulty
 			result = element
 	return result
 
