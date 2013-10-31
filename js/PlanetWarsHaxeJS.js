@@ -1,3 +1,7 @@
+nbrPlaneteMin = 5; // 5
+nbrPlaneteMax = 10; // 10
+gameSpeed = 500; // 500
+
 (function () { "use strict";
 function $extend(from, fields) {
 	function inherit() {}; inherit.prototype = from; var proto = new inherit();
@@ -407,7 +411,7 @@ com.tamina.planetwars.data.Galaxy.prototype = {
 com.tamina.planetwars.data.Game = function() { }
 com.tamina.planetwars.data.Game.__name__ = true;
 com.tamina.planetwars.data.Game.get_NUM_PLANET = function() {
-	if(com.tamina.planetwars.data.Game.NUM_PLANET == null) com.tamina.planetwars.data.Game.NUM_PLANET = new com.tamina.planetwars.data.Range(5,10);
+	if(com.tamina.planetwars.data.Game.NUM_PLANET == null) com.tamina.planetwars.data.Game.NUM_PLANET = new com.tamina.planetwars.data.Range(nbrPlaneteMin,nbrPlaneteMax);
 	return com.tamina.planetwars.data.Game.NUM_PLANET;
 }
 com.tamina.planetwars.data.Game.get_NEUTRAL_PLAYER = function() {
@@ -730,7 +734,7 @@ com.tamina.planetwars.server.BattleRenderer.prototype = {
 		this.start();
 	}
 	,start: function() {
-		if(!this._engine.get_isComputing()) this._engine.getBattleResult(this._data.firstPlayerHome.owner,this._data.secondPlayerHome.owner,this._data,500); else haxe.Log.trace("battle already started",{ fileName : "BattleRenderer.hx", lineNumber : 60, className : "com.tamina.planetwars.server.BattleRenderer", methodName : "start"});
+		if(!this._engine.get_isComputing()) this._engine.getBattleResult(this._data.firstPlayerHome.owner,this._data.secondPlayerHome.owner,this._data,gameSpeed); else haxe.Log.trace("battle already started",{ fileName : "BattleRenderer.hx", lineNumber : 60, className : "com.tamina.planetwars.server.BattleRenderer", methodName : "start"});
 	}
 	,init: function(firstPlayer,secondPlayer) {
 		haxe.Log.trace("init battle",{ fileName : "BattleRenderer.hx", lineNumber : 46, className : "com.tamina.planetwars.server.BattleRenderer", methodName : "init"});
@@ -905,7 +909,7 @@ com.tamina.planetwars.server.ShipSprite = function(ship) {
 	this.addChild(this._shipBitmap);
 	this._shipBitmap.x = -5;
 	this._shipBitmap.y = -5;
-	this._tween = createjs.Tween.get(this).to(new com.tamina.planetwars.geom.Point(this._data.target.x,this._data.target.y),this._data.travelDuration * 500).call($bind(this,this.tweenCompleteHandler));
+	this._tween = createjs.Tween.get(this).to(new com.tamina.planetwars.geom.Point(this._data.target.x,this._data.target.y),this._data.travelDuration * gameSpeed).call($bind(this,this.tweenCompleteHandler));
 	this._quadShape = new createjs.Shape();
 	this._quadShape.alpha = 0.5;
 	this._quadShape.graphics.clear();
@@ -1331,7 +1335,7 @@ com.tamina.planetwars.data.Game.DEFAULT_PLAYER_POPULATION = 100;
 com.tamina.planetwars.data.Game.PLANET_GROWTH = 5;
 com.tamina.planetwars.data.Game.SHIP_SPEED = 60;
 com.tamina.planetwars.data.Game.MAX_TURN_DURATION = 1000;
-com.tamina.planetwars.data.Game.GAME_SPEED = 500;
+com.tamina.planetwars.data.Game.GAME_SPEED = gameSpeed;
 com.tamina.planetwars.data.Game.GAME_DURATION = 240;
 com.tamina.planetwars.data.Game.GAME_MAX_NUM_TURN = 500;
 com.tamina.planetwars.data.PlanetPopulation.DEFAULT_SMALL = 20;

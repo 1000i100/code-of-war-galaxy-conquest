@@ -1,41 +1,19 @@
-###
- PlanetWars Javascript SDK v0.1
- http://www.tamina-online.com/expantion-origin/
-  
-  
- Copyright 2013 Tamina
- Released under the MIT license
- http://opensource.org/licenses/MIT
-  
- author : david mouton
-###
+# variable par dÃ©faut
+name = "IA 1nomable" # nom de l'IA
+color = 0 #  couleur d'affichage
+debugMessage="" # message de debugage utilisÃ© par le systeme et affichÃ© dans la trace Ã  chaque tour du combat
+id = 0 # Id de l'IA
+
+# variable maison
+orderCall = 0
 
 
-###
- nom de l'IA
-###
-name = "basic IA CS"
-
-###
-  couleur d'affichage
-###
-color = 0
-
-### message de debugage
-   utilisé par le systeme et affiché dans la trace à chaque tour du combat
-###
-debugMessage=""
-
-###
-Id de l'IA 
-###
-id = 0
 
 ###
   @internal method
 ###
 @onmessage = (event) ->
-	if event.data? 
+	if event.data?
 		turnMessage = event.data
 		id = turnMessage.playerId
 		postMessage( new TurnResult( getOrders(turnMessage.galaxy), debugMessage) )
@@ -43,8 +21,8 @@ id = 0
 
 
 ###
-  Invoquée tous les tours pour recuperer la liste des ordres à exécuter.
-  C'est la methode à modifier pour cabler son IA.
+  InvoquÃ©e tous les tours pour recuperer la liste des ordres Ã  exÃ©cuter.
+  C'est la methode Ã  modifier pour cabler son IA.
   @param context:Galaxy
   @return result:Array<Order>
 ###
@@ -54,12 +32,15 @@ getOrders = (context) ->
 	otherPlanets = GameUtil.getEnnemyPlanets(id, context)
 	if otherPlanets != null && otherPlanets.length > 0
 		for myPlanet in myPlanets
-			if myPlanet.population >=40
-				result.push new Order( myPlanet.id, getNearestPlanet(myPlanet,otherPlanets).id, myPlanet.population ) 
-
+			nearest = getNearestPlanet(myPlanet,otherPlanets)
+			populationGoal = nearest.population + GameUtil.getTravelNumTurn(myPlanet,nearest)*5 + 5
+			if myPlanet.population > populationGoal
+				result.push new Order( myPlanet.id, nearest.id, populationGoal )
+	orderCall++
+	debugMessage = 'Tour '+orderCall + 'flottes adverses : ' + GameUtil.getEnnemyFleet(id, context).length
 	return result;
 
-	
+
 getNearestPlanet = ( source, candidats ) ->
 	result = candidats[ 0 ]
 	currentDist = GameUtil.getDistanceBetween( new Point( source.x, source.y ), new Point( result.x, result.y ) )
@@ -67,9 +48,9 @@ getNearestPlanet = ( source, candidats ) ->
 		dist = GameUtil.getDistanceBetween( new Point( source.x, source.y ), new Point( element.x, element.y ) )
 		if  currentDist > dist
 			currentDist = dist
-			result = element		
+			result = element
 	return result
-	
+
 
 ###
   @model Galaxy
@@ -86,7 +67,7 @@ class Galaxy
 
 ###
   @model Range
-  @param from:Number début de l'intervale
+  @param from:Number dÃ©but de l'intervale
   @param to:Number fin de l'intervale
 ###
 class Range
@@ -97,7 +78,7 @@ class Range
   @model Order
   @param sourceID:Number id de la planete d'origine
   @param targetID:Number id de la planete cible
-  @param numUnits:Number nombre d'unité à déplacer
+  @param numUnits:Number nombre d'unitÃ© Ã  dÃ©placer
 ###
 class Order
 	constructor: (@sourceID,@targetID,@numUnits) ->
@@ -110,7 +91,7 @@ class Order
   @param owner:Player proprietaire
 ###
 class Planet
-	constructor: (@x,@y,@size,@owner) ->	
+	constructor: (@x,@y,@size,@owner) ->
 		### population###
 		@population = PlanetPopulation.getDefaultPopulation(size);
 		### id ###
@@ -125,7 +106,7 @@ class Planet
   @param creationTurn:Number numero du tour de creation du vaisseau
 ###
 class Ship
-	constructor: (@crew,@source,@target,@creationTurn) -> 
+	constructor: (@crew,@source,@target,@creationTurn) ->
 		### proprietaire du vaisseau###
 		@owner = source.owner;
 		### duree du voyage en nombre de tour###
@@ -163,16 +144,16 @@ class GameUtil
 	###
 	@getDistanceBetween : (p1,p2) ->
 		Math.sqrt(Math.pow(p2.x - p1.x,2) + Math.pow(p2.y - p1.y,2))
-	
+
 	###
 	  @param planetOwnerId:Number
 	  @param context:Galaxy
-	  @return result:Array<Planet> la liste des planetes appartenants à un joueur en particulier
+	  @return result:Array<Planet> la liste des planetes appartenants Ã  un joueur en particulier
 	###
 	@getPlayerPlanets: (planetOwnerId,context) ->
 		result = []
 		for p in context.content
-			if p.owner.id == planetOwnerId 
+			if p.owner.id == planetOwnerId
 				result.push p
 		return result
 	###
@@ -183,9 +164,24 @@ class GameUtil
 	@getEnnemyPlanets : (planetOwnerId,context) ->
 		result = []
 		for p in context.content
-			if p.owner.id != planetOwnerId 
+			if p.owner.id != planetOwnerId
 				result.push p
 		return result
+
+	@getEnnemyFleet : (playerId,context) ->
+		result = []
+		for s in context.fleet
+			if s.owner.id != playerId
+				result.push s
+		return result
+
+	@getTravelNumTurn : (source,target) ->
+		return Math.ceil(GameUtil.getDistanceBetween(new Point(source.x,source.y),new Point(target.x,target.y)) / Game.SHIP_SPEED)
+
+
+
+
+
 
 ###
   Classe utilitaire
@@ -201,7 +197,7 @@ class UID
 ###
   Constantes
 ###
-class Game 
+class Game
 	@DEFAULT_PLAYER_POPULATION : 100;
 	@NUM_PLANET : new Range(5,10);
 	@PLANET_GROWTH : 5;

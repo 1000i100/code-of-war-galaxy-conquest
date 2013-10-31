@@ -1,15 +1,46 @@
-(function() {
-  var Galaxy, Game, GameUtil, Order, Planet, PlanetPopulation, PlanetSize, Point, Range, Ship, TurnMessage, TurnResult, UID, color, debugMessage, getNearestPlanet, getOrders, id, name, orderCall;
+/*
+ PlanetWars Javascript SDK v0.1
+ http://www.tamina-online.com/expantion-origin/
+  
+  
+ Copyright 2013 Tamina
+ Released under the MIT license
+ http://opensource.org/licenses/MIT
+  
+ author : david mouton
+*/
 
-  name = "IA 1nomable";
+
+/*
+ nom de l'IA
+*/
+
+
+(function() {
+  var Galaxy, Game, GameUtil, Order, Planet, PlanetPopulation, PlanetSize, Point, Range, Ship, TurnMessage, TurnResult, UID, color, debugMessage, getOrders, id, name;
+
+  name = "noname";
+
+  /*
+    couleur d'affichage
+  */
+
 
   color = 0;
 
+  /* message de debugage
+     utilis� par le systeme et affich� dans la trace � chaque tour du combat
+  */
+
+
   debugMessage = "";
 
-  id = 0;
+  /*
+  Id de l'IA
+  */
 
-  orderCall = 0;
+
+  id = 0;
 
   /*
     @internal method
@@ -28,46 +59,15 @@
   };
 
   /*
-    Invoquée tous les tours pour recuperer la liste des ordres à exécuter.
-    C'est la methode à modifier pour cabler son IA.
+    Invoqu�e tous les tours pour recuperer la liste des ordres � ex�cuter.
+    C'est la methode � modifier pour cabler son IA.
     @param context:Galaxy
     @return result:Array<Order>
   */
 
 
   getOrders = function(context) {
-    var myPlanet, myPlanets, nearest, otherPlanets, populationGoal, result, _i, _len;
-    result = [];
-    myPlanets = GameUtil.getPlayerPlanets(id, context);
-    otherPlanets = GameUtil.getEnnemyPlanets(id, context);
-    if (otherPlanets !== null && otherPlanets.length > 0) {
-      for (_i = 0, _len = myPlanets.length; _i < _len; _i++) {
-        myPlanet = myPlanets[_i];
-        nearest = getNearestPlanet(myPlanet, otherPlanets);
-        populationGoal = nearest.population + GameUtil.getTravelNumTurn(myPlanet, nearest) * 5 + 5;
-        if (myPlanet.population > populationGoal) {
-          result.push(new Order(myPlanet.id, nearest.id, populationGoal));
-        }
-      }
-    }
-    orderCall++;
-    debugMessage = 'Tour ' + orderCall + 'flottes adverses : ' + GameUtil.getEnnemyFleet(id, context).length;
-    return result;
-  };
-
-  getNearestPlanet = function(source, candidats) {
-    var currentDist, dist, element, result, _i, _len;
-    result = candidats[0];
-    currentDist = GameUtil.getDistanceBetween(new Point(source.x, source.y), new Point(result.x, result.y));
-    for (_i = 0, _len = candidats.length; _i < _len; _i++) {
-      element = candidats[_i];
-      dist = GameUtil.getDistanceBetween(new Point(source.x, source.y), new Point(element.x, element.y));
-      if (currentDist > dist) {
-        currentDist = dist;
-        result = element;
-      }
-    }
-    return result;
+    return [];
   };
 
   /*
@@ -81,13 +81,17 @@
     function Galaxy(width, height) {
       this.width = width;
       this.height = height;
-      /*contenu : liste Planet*/
-
-      this.content = [];
-      /*flote : liste de Ship*/
-
-      this.fleet = [];
     }
+
+    /*contenu : liste Planet*/
+
+
+    Galaxy.prototype.content = [];
+
+    /*flote : liste de Ship*/
+
+
+    Galaxy.prototype.fleet = [];
 
     return Galaxy;
 
@@ -95,7 +99,7 @@
 
   /*
     @model Range
-    @param from:Number début de l'intervale
+    @param from:Number d�but de l'intervale
     @param to:Number fin de l'intervale
   */
 
@@ -114,7 +118,7 @@
     @model Order
     @param sourceID:Number id de la planete d'origine
     @param targetID:Number id de la planete cible
-    @param numUnits:Number nombre d'unité à déplacer
+    @param numUnits:Number nombre d'unit� � d�placer
   */
 
 
@@ -144,13 +148,17 @@
       this.y = y;
       this.size = size;
       this.owner = owner;
-      /* population*/
-
-      this.population = PlanetPopulation.getDefaultPopulation(size);
-      /* id*/
-
-      this.id = UID.get();
     }
+
+    /* population*/
+
+
+    Planet.prototype.population = PlanetPopulation.getDefaultPopulation(size);
+
+    /* id*/
+
+
+    Planet.prototype.id = UID.get();
 
     return Planet;
 
@@ -171,13 +179,17 @@
       this.source = source;
       this.target = target;
       this.creationTurn = creationTurn;
-      /* proprietaire du vaisseau*/
-
-      this.owner = source.owner;
-      /* duree du voyage en nombre de tour*/
-
-      this.travelDuration = Math.ceil(GameUtil.getDistanceBetween(new Point(source.x, source.y), new Point(target.x, target.y)) / Game.SHIP_SPEED);
     }
+
+    /* proprietaire du vaisseau*/
+
+
+    Ship.prototype.owner = source.owner;
+
+    /* duree du voyage en nombre de tour*/
+
+
+    Ship.prototype.travelDuration = Math.ceil(GameUtil.getDistanceBetween(new Point(source.x, source.y), new Point(target.x, target.y)) / Game.SHIP_SPEED);
 
     return Ship;
 
@@ -207,8 +219,9 @@
     function TurnResult(orders, consoleMessage) {
       this.orders = orders;
       this.consoleMessage = consoleMessage != null ? consoleMessage : "";
-      this.error = "";
     }
+
+    TurnResult.prototype.error = "";
 
     return TurnResult;
 
@@ -253,7 +266,7 @@
     /*
     	  @param planetOwnerId:Number
     	  @param context:Galaxy
-    	  @return result:Array<Planet> la liste des planetes appartenants à un joueur en particulier
+    	  @return result:Array<Planet> la liste des planetes appartenants � un joueur en particulier
     */
 
 
@@ -288,23 +301,6 @@
         }
       }
       return result;
-    };
-
-    GameUtil.getEnnemyFleet = function(playerId, context) {
-      var result, s, _i, _len, _ref;
-      result = [];
-      _ref = context.fleet;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        s = _ref[_i];
-        if (s.owner.id !== playerId) {
-          result.push(s);
-        }
-      }
-      return result;
-    };
-
-    GameUtil.getTravelNumTurn = function(source, target) {
-      return Math.ceil(GameUtil.getDistanceBetween(new Point(source.x, source.y), new Point(target.x, target.y)) / Game.SHIP_SPEED);
     };
 
     return GameUtil;
