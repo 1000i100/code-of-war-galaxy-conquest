@@ -32,10 +32,13 @@ getOrders = (context) ->
 	otherPlanets = GameUtil.getEnnemyPlanets(id, context)
 	if otherPlanets != null && otherPlanets.length > 0
 		for myPlanet in myPlanets
-			nearest = getNearestPlanet(myPlanet,otherPlanets)
-			populationGoal = nearest.population + GameUtil.getTravelNumTurn(myPlanet,nearest)*5 + 5
-			if myPlanet.population > populationGoal
-				result.push new Order( myPlanet.id, nearest.id, populationGoal )
+			if myPlanet.population > otherPlanets.length
+				for planet in otherPlanets
+					result.push new Order( myPlanet.id, planet.id, 1 )
+#			nearest = getNearestPlanet(myPlanet,otherPlanets)
+#			populationGoal = nearest.population + GameUtil.getTravelNumTurn(myPlanet,nearest)*5 + 5
+#			if myPlanet.population > populationGoal
+#				result.push new Order( myPlanet.id, nearest.id, populationGoal )
 	orderCall++
 	debugMessage = 'Tour '+orderCall + 'flottes adverses : ' + GameUtil.getEnnemyFleet(id, context).length
 	return result;

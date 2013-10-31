@@ -36,17 +36,18 @@
 
 
   getOrders = function(context) {
-    var myPlanet, myPlanets, nearest, otherPlanets, populationGoal, result, _i, _len;
+    var myPlanet, myPlanets, otherPlanets, planet, result, _i, _j, _len, _len1;
     result = [];
     myPlanets = GameUtil.getPlayerPlanets(id, context);
     otherPlanets = GameUtil.getEnnemyPlanets(id, context);
     if (otherPlanets !== null && otherPlanets.length > 0) {
       for (_i = 0, _len = myPlanets.length; _i < _len; _i++) {
         myPlanet = myPlanets[_i];
-        nearest = getNearestPlanet(myPlanet, otherPlanets);
-        populationGoal = nearest.population + GameUtil.getTravelNumTurn(myPlanet, nearest) * 5 + 5;
-        if (myPlanet.population > populationGoal) {
-          result.push(new Order(myPlanet.id, nearest.id, populationGoal));
+        if (myPlanet.population > otherPlanets.length) {
+          for (_j = 0, _len1 = otherPlanets.length; _j < _len1; _j++) {
+            planet = otherPlanets[_j];
+            result.push(new Order(myPlanet.id, planet.id, 1));
+          }
         }
       }
     }
