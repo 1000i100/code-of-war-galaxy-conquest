@@ -229,7 +229,8 @@ com.tamina.planetwars.core.GameEngine.prototype = {
 				playerTwoNumUnits++;
 			}
 		}
-		if(playerOneNumUnits == 0) this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player2,"Vainqueur par KO",this._player1,this._player2)); else if(playerTwoNumUnits == 0) this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player1,"Vainqueur par KO",this._player1,this._player2));
+		if(playerOneNumUnits == 0) this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player2,"Vainqueur par KO",this._player1,this._player2));
+		else if(playerTwoNumUnits == 0) this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player1,"Vainqueur par KO",this._player1,this._player2));
 	}
 	,computeCurrentTurn: function() {
 		this.parseOrder();
@@ -239,7 +240,8 @@ com.tamina.planetwars.core.GameEngine.prototype = {
 		bean.fire(com.tamina.planetwars.core.EventDispatcher.getInstance(),"turnUpdate");
 		this._currentTurn++;
 		if(this._isComputing && this._currentTurn >= this._maxNumTurn) {
-			if(this.playerOneScore > this.playerTwoScore) this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player1,"DUREE MAX ATTEINTE",this._player1,this._player2)); else this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player2,"DUREE MAX ATTEINTE",this._player1,this._player2));
+			if(this.playerOneScore > this.playerTwoScore) this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player1,"DUREE MAX ATTEINTE",this._player1,this._player2));
+			else this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player2,"DUREE MAX ATTEINTE",this._player1,this._player2));
 		}
 	}
 	,resolveConflict: function(attacker,defender) {
@@ -271,12 +273,14 @@ com.tamina.planetwars.core.GameEngine.prototype = {
 	,maxDuration_reachHandler: function(event) {
 		haxe.Log.trace("max duration reached",{ fileName : "GameEngine.hx", lineNumber : 105, className : "com.tamina.planetwars.core.GameEngine", methodName : "maxDuration_reachHandler"});
 		var playerId = event;
-		if(playerId == this._player1.id) this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player2,"DUREE DU TOUR TROP LONGUE",this._player1,this._player2)); else this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player1,"DUREE DU TOUR TROP LONGUE",this._player1,this._player2));
+		if(playerId == this._player1.id) this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player2,"DUREE DU TOUR TROP LONGUE",this._player1,this._player2));
+		else this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player1,"DUREE DU TOUR TROP LONGUE",this._player1,this._player2));
 	}
 	,turnResultErrorHandler: function(event) {
 		haxe.Log.trace("turn result error",{ fileName : "GameEngine.hx", lineNumber : 92, className : "com.tamina.planetwars.core.GameEngine", methodName : "turnResultErrorHandler"});
 		var playerId = event;
-		if(playerId == this._player1.id) this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player2,"RESULTAT DU TOUR INATTENDU",this._player1,this._player2)); else this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player1,"RESULTAT DU TOUR INATTENDU",this._player1,this._player2));
+		if(playerId == this._player1.id) this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player2,"RESULTAT DU TOUR INATTENDU",this._player1,this._player2));
+		else this.endBattle(new com.tamina.planetwars.data.BattleResult(this.playerOneScore,this.playerTwoScore,this._currentTurn,this._player1,"RESULTAT DU TOUR INATTENDU",this._player1,this._player2));
 	}
 	,retrieveIAOrders: function() {
 		if(!this._IA1.isRunning() && !this._IA2.isRunning()) {

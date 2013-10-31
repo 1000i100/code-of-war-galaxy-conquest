@@ -5,7 +5,7 @@ debugMessage="" # message de debugage utilisé par le systeme et affiché dans l
 id = 0 # Id de l'IA
 
 # variable maison
-orderCall = 0
+actualTurn = 0
 
 # constante de jeu connu :
 croissanceParTour = 5
@@ -29,28 +29,103 @@ croissanceParTour = 5
   @return result:Array<Order>
 ###
 getOrders = (context) ->
+	debugMessage='<br>Tour '+actualTurn
 	result = []
 	try
 		myPlanets = GameUtil.getPlayerPlanets( id, context )
 		otherPlanets = GameUtil.getEnnemyPlanets(id, context)
 		if otherPlanets != null && otherPlanets.length > 0
 			for myPlanet in myPlanets
-	#			if myPlanet.population > otherPlanets.length
-	#				for planet in otherPlanets
-	#					result.push new Order( myPlanet.id, planet.id, 1 )
-				target = getEasyestPlanet(myPlanet,otherPlanets)
-				populationGoal = 1 + naturalPopInXTurn(target, GameUtil.getTravelNumTurn(myPlanet,target))
+#				if myPlanet.population > otherPlanets.length
+#					for planet in otherPlanets
+#						result.push new Order( myPlanet.id, planet.id, 1 )
+
+				# cible facile
+				targets = getEasyPlanets(myPlanet,context,otherPlanets)
+				target = targets[Math.floor(Math.random()*targets.length)]
+				travelTime = GameUtil.getTravelNumTurn(myPlanet,target)
+				targetFutur = planeteInXTurn(target, context, travelTime)
+				populationGoal = 1 + planeteInXTurn(target, context, GameUtil.getTravelNumTurn(myPlanet,target)).population
 				if myPlanet.population > populationGoal
 					result.push new Order( myPlanet.id, target.id, populationGoal )
-		orderCall++
-		debugMessage = 'Tour '+orderCall
-		#debugMessage+= ' planete attr : '+naturalPopInXTurn(myPlanets[0],100)
+					myPlanet.population -= populationGoal
+
+				# évacuation anti trop plein
+				if planeteInXTurn(myPlanet, context, 1).population >= PlanetPopulation.getMaxPopulation(myPlanet.size)
+					target = getEasyestPlanet(myPlanet,context,otherPlanets)
+					populationGoal = Math.min(myPlanet.population, 1 + planeteInXTurn(target, context, GameUtil.getTravelNumTurn(myPlanet,target)).population)
+					result.push new Order(myPlanet.id, target.id, populationGoal)
+					myPlanet.population -= populationGoal
+
+				# évacuation pro saturation adverse
+				# si vaisseau adverse arrive au prochain tour et que le bilan de population de tous les vaisseau en route vers la planète à un solde en faveur de l'ennemi > popMax
+				# alors évacuer vers la destination la plus proche convertible ou amie (plusieurs vaisseaux en cas de saturation)
+				ennemisEnRoute = getShipGoingTo myPlanet, GameUtil.getEnnemyFleets(id,context)
+				landNextTurn = false
+				for ship in ennemisEnRoute
+					landNextTurn=true if 1 == getShipLandingTurn(ship)-actualTurn
+				if landNextTurn
+					puissanceAdverse = 0
+					for ship in ennemisEnRoute
+						puissanceAdverse += ship.crew
+					if puissanceAdverse > PlanetPopulation.getMaxPopulation(myPlanet.size)
+						result = evacTotal(myPlanet, context, result)
+
+				if planeteInXTurn(myPlanet, context, 1).population >= PlanetPopulation.getMaxPopulation(myPlanet.size)
+					target = getEasyestPlanet(myPlanet,context,otherPlanets)
+					populationGoal = Math.min(myPlanet.population, 1 + planeteInXTurn(target, context, GameUtil.getTravelNumTurn(myPlanet,target)).population)
+					result.push new Order(myPlanet.id, target.id, populationGoal)
+
+
 	catch e
 		debugMessage += e
+	actualTurn++
 	return result
+
+evacTotal = (myPlanet, context, result) ->
+	# TODO : orderByDistance
+	target = getNearestPlanet myPlanet, context.content
+	result.push new Order(myPlanet.id, target.id, myPlanet.population)
+	return result
+
 
 naturalPopInXTurn = (planet, turn) ->
 	Math.min(planet.population + turn*croissanceParTour, PlanetPopulation.getMaxPopulation(planet.size))
+
+planeteInXTurn = (planet, context, turn) ->
+	pclone =
+		size: planet.size
+		population: planet.population
+		owner: planet.owner
+		id: planet.id
+		x: planet.x
+		y: planet.y
+		ref: planet
+	pop = pclone.population-5
+	fleet = getShipGoingTo pclone.ref, context.fleet
+	for t in [0..turn]
+		for s in fleet
+			if getShipLandingTurn(s) == actualTurn+t
+				if s.owner == pclone.owner
+					pop = Math.min(pop+s.crew, PlanetPopulation.getMaxPopulation(pclone.size))
+				else
+					pop = pop-s.crew
+					if pop<0
+						pop = -pop
+						pclone.owner = s.owner
+		pop = Math.min(pop+croissanceParTour, PlanetPopulation.getMaxPopulation(pclone.size))
+	pclone.population = pop
+	return pclone
+
+getShipLandingTurn = (ship) ->
+	ship.creationTurn+ship.travelDuration
+getShipGoingTo = (planet, candidats) ->
+	result = []
+	for s in candidats
+		if s.target == planet
+			result.push s
+	return result
+
 
 getNearestPlanet = (source, candidats) ->
 	result = candidats[ 0 ]
@@ -62,14 +137,45 @@ getNearestPlanet = (source, candidats) ->
 			result = element
 	return result
 
-getEasyestPlanet = (source, candidats) ->
+getEasyestPlanet = (source, context, candidats) ->
+	candidats = context.content if !candidats
 	result = candidats[0]
-	minDifficulty = naturalPopInXTurn candidats[0], GameUtil.getTravelNumTurn(source,candidats[0])
+	travelTime = GameUtil.getTravelNumTurn(source,candidats[0])
+	pl = planeteInXTurn(result, context, travelTime)
+	if pl.owner == result.owner
+		minDifficulty = pl.population
+	else
+		minDifficulty = 9999
 	for element in candidats
-		difficulty = naturalPopInXTurn element, GameUtil.getTravelNumTurn(source,element)
+		travelTime = GameUtil.getTravelNumTurn(source,element)
+		pl = planeteInXTurn(element, context, travelTime)
+		if pl.owner == element.owner
+			difficulty = pl.population
+		else
+			difficulty = 9999
 		if minDifficulty > difficulty
 			minDifficulty = difficulty
 			result = element
+	return result
+
+getEasyPlanets = (source, context, candidats) ->
+	easyest = getEasyestPlanet(source, context, candidats)
+	travelTime = GameUtil.getTravelNumTurn(source,easyest)
+	pl = planeteInXTurn(easyest, context, travelTime)
+	if pl.owner == easyest.owner
+		minDifficulty = pl.population
+	else
+		minDifficulty = 9999
+	result = []
+	for element in candidats
+		travelTime = GameUtil.getTravelNumTurn(source,element)
+		pl = planeteInXTurn(element, context, travelTime)
+		if pl.owner == element.owner
+			difficulty = pl.population
+		else
+			difficulty = 9999
+		if difficulty <= minDifficulty+10
+			result.push element
 	return result
 
 
@@ -189,10 +295,17 @@ class GameUtil
 				result.push p
 		return result
 
-	@getEnnemyFleet : (playerId,context) ->
+	@getEnnemyFleets : (playerId,context) ->
 		result = []
 		for s in context.fleet
 			if s.owner.id != playerId
+				result.push s
+		return result
+
+	@getMyFleets : (playerId,context) ->
+		result = []
+		for s in context.fleet
+			if s.owner.id == playerId
 				result.push s
 		return result
 

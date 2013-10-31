@@ -1,5 +1,5 @@
 (function() {
-  var Galaxy, Game, GameUtil, Order, Planet, PlanetPopulation, PlanetSize, Point, Range, Ship, TurnMessage, TurnResult, UID, actualTurn, color, croissanceParTour, debugMessage, evacTotal, getEasyPlanets, getEasyestPlanet, getNearestPlanet, getOrders, getShipGoingTo, getShipLandingTurn, id, name, naturalPopInXTurn, planeteInXTurn;
+  var Galaxy, Game, GameUtil, Order, Planet, PlanetPopulation, PlanetSize, Point, Range, Ship, TurnMessage, TurnResult, UID, color, croissanceParTour, debugMessage, getEasyestPlanet, getNearestPlanet, getOrders, id, name, naturalPopInXTurn, orderCall;
 
   name = "IA 1nomable";
 
@@ -9,7 +9,7 @@
 
   id = 0;
 
-  actualTurn = 0;
+  orderCall = 0;
 
   croissanceParTour = 5;
 
@@ -38,8 +38,7 @@
 
 
   getOrders = function(context) {
-    var e, ennemisEnRoute, landNextTurn, myPlanet, myPlanets, otherPlanets, populationGoal, puissanceAdverse, result, ship, target, targetFutur, targets, travelTime, _i, _j, _k, _len, _len1, _len2;
-    debugMessage = '<br>Tour ' + actualTurn;
+    var e, myPlanet, myPlanets, otherPlanets, populationGoal, result, target, _i, _len;
     result = [];
     try {
       myPlanets = GameUtil.getPlayerPlanets(id, context);
@@ -47,113 +46,24 @@
       if (otherPlanets !== null && otherPlanets.length > 0) {
         for (_i = 0, _len = myPlanets.length; _i < _len; _i++) {
           myPlanet = myPlanets[_i];
-          targets = getEasyPlanets(myPlanet, context, otherPlanets);
-          target = targets[Math.floor(Math.random() * targets.length)];
-          travelTime = GameUtil.getTravelNumTurn(myPlanet, target);
-          targetFutur = planeteInXTurn(target, context, travelTime);
-          populationGoal = 1 + planeteInXTurn(target, context, GameUtil.getTravelNumTurn(myPlanet, target)).population;
+          target = getEasyestPlanet(myPlanet, otherPlanets);
+          populationGoal = 1 + naturalPopInXTurn(target, GameUtil.getTravelNumTurn(myPlanet, target));
           if (myPlanet.population > populationGoal) {
-            result.push(new Order(myPlanet.id, target.id, populationGoal));
-            myPlanet.population -= populationGoal;
-          }
-          if (planeteInXTurn(myPlanet, context, 1).population >= PlanetPopulation.getMaxPopulation(myPlanet.size)) {
-            target = getEasyestPlanet(myPlanet, context, otherPlanets);
-            populationGoal = Math.min(myPlanet.population, 1 + planeteInXTurn(target, context, GameUtil.getTravelNumTurn(myPlanet, target)).population);
-            result.push(new Order(myPlanet.id, target.id, populationGoal));
-            myPlanet.population -= populationGoal;
-          }
-          ennemisEnRoute = getShipGoingTo(myPlanet, GameUtil.getEnnemyFleets(id, context));
-          landNextTurn = false;
-          for (_j = 0, _len1 = ennemisEnRoute.length; _j < _len1; _j++) {
-            ship = ennemisEnRoute[_j];
-            if (1 === getShipLandingTurn(ship) - actualTurn) {
-              landNextTurn = true;
-            }
-          }
-          if (landNextTurn) {
-            puissanceAdverse = 0;
-            for (_k = 0, _len2 = ennemisEnRoute.length; _k < _len2; _k++) {
-              ship = ennemisEnRoute[_k];
-              puissanceAdverse += ship.crew;
-            }
-            if (puissanceAdverse > PlanetPopulation.getMaxPopulation(myPlanet.size)) {
-              result = evacTotal(myPlanet, context, result);
-            }
-          }
-          if (planeteInXTurn(myPlanet, context, 1).population >= PlanetPopulation.getMaxPopulation(myPlanet.size)) {
-            target = getEasyestPlanet(myPlanet, context, otherPlanets);
-            populationGoal = Math.min(myPlanet.population, 1 + planeteInXTurn(target, context, GameUtil.getTravelNumTurn(myPlanet, target)).population);
             result.push(new Order(myPlanet.id, target.id, populationGoal));
           }
         }
       }
+      orderCall++;
+      debugMessage = 'Tour ' + orderCall;
     } catch (_error) {
       e = _error;
       debugMessage += e;
     }
-    actualTurn++;
-    return result;
-  };
-
-  evacTotal = function(myPlanet, context, result) {
-    var target;
-    target = getNearestPlanet(myPlanet, context.content);
-    result.push(new Order(myPlanet.id, target.id, myPlanet.population));
     return result;
   };
 
   naturalPopInXTurn = function(planet, turn) {
     return Math.min(planet.population + turn * croissanceParTour, PlanetPopulation.getMaxPopulation(planet.size));
-  };
-
-  planeteInXTurn = function(planet, context, turn) {
-    var fleet, pclone, pop, s, t, _i, _j, _len;
-    pclone = {
-      size: planet.size,
-      population: planet.population,
-      owner: planet.owner,
-      id: planet.id,
-      x: planet.x,
-      y: planet.y,
-      ref: planet
-    };
-    pop = pclone.population - 5;
-    fleet = getShipGoingTo(pclone.ref, context.fleet);
-    for (t = _i = 0; 0 <= turn ? _i <= turn : _i >= turn; t = 0 <= turn ? ++_i : --_i) {
-      for (_j = 0, _len = fleet.length; _j < _len; _j++) {
-        s = fleet[_j];
-        if (getShipLandingTurn(s) === actualTurn + t) {
-          if (s.owner === pclone.owner) {
-            pop = Math.min(pop + s.crew, PlanetPopulation.getMaxPopulation(pclone.size));
-          } else {
-            pop = pop - s.crew;
-            if (pop < 0) {
-              pop = -pop;
-              pclone.owner = s.owner;
-            }
-          }
-        }
-      }
-      pop = Math.min(pop + croissanceParTour, PlanetPopulation.getMaxPopulation(pclone.size));
-    }
-    pclone.population = pop;
-    return pclone;
-  };
-
-  getShipLandingTurn = function(ship) {
-    return ship.creationTurn + ship.travelDuration;
-  };
-
-  getShipGoingTo = function(planet, candidats) {
-    var result, s, _i, _len;
-    result = [];
-    for (_i = 0, _len = candidats.length; _i < _len; _i++) {
-      s = candidats[_i];
-      if (s.target === planet) {
-        result.push(s);
-      }
-    }
-    return result;
   };
 
   getNearestPlanet = function(source, candidats) {
@@ -171,58 +81,16 @@
     return result;
   };
 
-  getEasyestPlanet = function(source, context, candidats) {
-    var difficulty, element, minDifficulty, pl, result, travelTime, _i, _len;
-    if (!candidats) {
-      candidats = context.content;
-    }
+  getEasyestPlanet = function(source, candidats) {
+    var difficulty, element, minDifficulty, result, _i, _len;
     result = candidats[0];
-    travelTime = GameUtil.getTravelNumTurn(source, candidats[0]);
-    pl = planeteInXTurn(result, context, travelTime);
-    if (pl.owner === result.owner) {
-      minDifficulty = pl.population;
-    } else {
-      minDifficulty = 9999;
-    }
+    minDifficulty = naturalPopInXTurn(candidats[0], GameUtil.getTravelNumTurn(source, candidats[0]));
     for (_i = 0, _len = candidats.length; _i < _len; _i++) {
       element = candidats[_i];
-      travelTime = GameUtil.getTravelNumTurn(source, element);
-      pl = planeteInXTurn(element, context, travelTime);
-      if (pl.owner === element.owner) {
-        difficulty = pl.population;
-      } else {
-        difficulty = 9999;
-      }
+      difficulty = naturalPopInXTurn(element, GameUtil.getTravelNumTurn(source, element));
       if (minDifficulty > difficulty) {
         minDifficulty = difficulty;
         result = element;
-      }
-    }
-    return result;
-  };
-
-  getEasyPlanets = function(source, context, candidats) {
-    var difficulty, easyest, element, minDifficulty, pl, result, travelTime, _i, _len;
-    easyest = getEasyestPlanet(source, context, candidats);
-    travelTime = GameUtil.getTravelNumTurn(source, easyest);
-    pl = planeteInXTurn(easyest, context, travelTime);
-    if (pl.owner === easyest.owner) {
-      minDifficulty = pl.population;
-    } else {
-      minDifficulty = 9999;
-    }
-    result = [];
-    for (_i = 0, _len = candidats.length; _i < _len; _i++) {
-      element = candidats[_i];
-      travelTime = GameUtil.getTravelNumTurn(source, element);
-      pl = planeteInXTurn(element, context, travelTime);
-      if (pl.owner === element.owner) {
-        difficulty = pl.population;
-      } else {
-        difficulty = 9999;
-      }
-      if (difficulty <= minDifficulty + 10) {
-        result.push(element);
       }
     }
     return result;
@@ -448,26 +316,13 @@
       return result;
     };
 
-    GameUtil.getEnnemyFleets = function(playerId, context) {
+    GameUtil.getEnnemyFleet = function(playerId, context) {
       var result, s, _i, _len, _ref;
       result = [];
       _ref = context.fleet;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         s = _ref[_i];
         if (s.owner.id !== playerId) {
-          result.push(s);
-        }
-      }
-      return result;
-    };
-
-    GameUtil.getMyFleets = function(playerId, context) {
-      var result, s, _i, _len, _ref;
-      result = [];
-      _ref = context.fleet;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        s = _ref[_i];
-        if (s.owner.id === playerId) {
           result.push(s);
         }
       }
