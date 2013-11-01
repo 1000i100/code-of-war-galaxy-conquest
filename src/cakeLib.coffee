@@ -12,6 +12,7 @@ chai						= require 'chai'
 chaiAsPromised	= require 'chai-as-promised'
 rimraf					= require 'rimraf'
 livereload			= require 'livereload'
+UglifyJS				= require 'uglify-js'
 require 'colors'
 
 # internal globals
@@ -87,7 +88,9 @@ exports.cleanTask = (options)->
 
 exports.coffee2js = (srcContent, srcFileName) ->
 	q = Q.defer()
-	q.resolve coffee.compile srcContent
+	jsStr = coffee.compile srcContent
+	jsStr = UglifyJS.minify(jsStr+'',{fromString: true}).code
+	q.resolve jsStr
 	q.promise
 
 appFileChange = (file) ->

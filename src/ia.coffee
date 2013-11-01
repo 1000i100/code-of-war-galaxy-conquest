@@ -36,9 +36,6 @@ getOrders = (context) ->
 		otherPlanets = GameUtil.getEnnemyPlanets(id, context)
 		if otherPlanets != null && otherPlanets.length > 0
 			for myPlanet in myPlanets
-#				if myPlanet.population > otherPlanets.length
-#					for planet in otherPlanets
-#						result.push new Order( myPlanet.id, planet.id, 1 )
 
 				# cible facile
 				targets = getEasyPlanets(myPlanet,context,otherPlanets)
@@ -76,6 +73,10 @@ getOrders = (context) ->
 					populationGoal = Math.min(myPlanet.population, 1 + planeteInXTurn(target, context, GameUtil.getTravelNumTurn(myPlanet,target)).population)
 					result.push new Order(myPlanet.id, target.id, populationGoal)
 
+				# armée de leurres
+				for planet in context.content
+					if planet != myPlanet
+						result.push new Order( myPlanet.id, planet.id, 0 )
 
 	catch e
 		debugMessage += e

@@ -20,6 +20,7 @@
     "mkdirp": "~0.3.5",
     "rimraf": "~2.2.2",
     "chai-as-promised": "~4.1.0",
-    "livereload": "~0.3.2"
+    "livereload": "~0.3.2",
+    "uglify-js": "~2.4.1"
   }
 }
