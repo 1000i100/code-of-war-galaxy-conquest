@@ -47,7 +47,20 @@
 
 		</style>
 		<div id="stats">
-      <button id="makeStats">Générer les statistiques</button>
+      VS <button id="oldBest">Ancien Champion</button>
+      <button id="inactive">IA inactive</button>
+      <button id="basique">IA basique</button>
+      <button id="flood">IA flood</button>
+      <button id="defensive">IA défensive</button>
+      <button id="agressive">IA agressive</button>
+      <button id="predictive">IA prédictive</button>
+     	<br>
+			<button id="planetClassique">5 à 10 planètes (classique)</button>
+			<button id="planet20">20 planètes</button>
+     	<br>
+			<button id="ready">Initialiser</button>
+     	<br>
+			<button id="genStat">Générer les statistiques</button>
       <table>
       	<tr>
       		<th id="progression">
@@ -56,6 +69,7 @@
       	<tr id="victoires"><td>victoires</td><td>0</td><td>0</td></tr>
       	<tr id="par-ko"><td>par KO</td><td>0</td><td>0</td></tr>
       	<tr id="par-limite-de-tour"><td>par limite de tour</td><td>0</td><td>0</td></tr>
+      	<tr id="par-lag"><td>par lag</td><td>0</td><td>0</td></tr>
       	<tr id="par-erreur-adverse"><td>par erreur adverse</td><td>0</td><td>0</td></tr>
       	<tr id="meilleur-score"><td>meilleur score</td><td>0</td><td>0</td></tr>
       	<tr id="score-moyen"><td>score moyen</td><td>0</td><td>0</td></tr>
@@ -79,16 +93,65 @@
 		<script src="js/PlanetWarsHaxeJS.js"></script>
 		<script>
 		function init(){
-			partie = PlanetWars.init("A détrôner","ia.js","IA 1nomable","ia/ia.js");
+			vsName = 'Ancien Champion';
+			vsFile = 'ia.js';
 			nbrPlaneteMin = 5; // 5
 			nbrPlaneteMax = 10; // 10
 			gameSpeed = 500; // 500
 			numPartie = 0
 			readyForNextMatch = true
 
-			$('#makeStats').click(nextMatch);
+			urlParam = window.location.href.split('?')[1];
 
-			//partie.start();
+			$('#oldBest').click(function(){vsName = $('#oldBest').text();
+				vsFile = 'ia.js'													;});
+			$('#inactive').click(function(){vsName = $('#inactive').text();
+				vsFile = 'ia/iaPassive.js'								;});
+			$('#basique').click(function(){vsName = $('#basique').text();
+				vsFile = 'iaBasique.js'										;});
+			$('#flood').click(function(){vsName = $('#flood').text();
+				vsFile = 'otherIA/ia4flood.js'						;});
+			$('#defensive').click(function(){vsName = $('#defensive').text();
+				vsFile = 'otherIA/ia16defensive.js'				;});
+			$('#agressive').click(function(){vsName = $('#agressive').text();
+				vsFile = 'otherIA/ia5agressive.js'				;});
+			$('#predictive').click(function(){vsName = $('#predictive').text();
+				vsFile = 'otherIA/ia10hardPredictive.js'	;});
+
+			if(-1 != urlParam.search('oldBest')) $('#oldBest').click();
+			if(-1 != urlParam.search('inactive')) $('#inactive').click();
+			if(-1 != urlParam.search('basique')) $('#basique').click();
+			if(-1 != urlParam.search('flood')) $('#flood').click();
+			if(-1 != urlParam.search('defensive')) $('#defensive').click();
+			if(-1 != urlParam.search('agressive')) $('#agressive').click();
+			if(-1 != urlParam.search('predictive')) $('#predictive').click();
+
+			$('#planetClassique').click(function(){
+				nbrPlaneteMin = 5; // 5
+				nbrPlaneteMax = 10; // 10
+			});
+			$('#planet20').click(function(){
+				nbrPlaneteMin = 20; // 5
+				nbrPlaneteMax = 20; // 10
+			});
+
+			if(-1 != urlParam.search('planet')){
+				nbrPlanete = parseInt(urlParam.split('planet')[1].split('=')[1]);
+				nbrPlaneteMin = nbrPlanete;
+				nbrPlaneteMax = nbrPlanete;
+			}
+
+			$('#ready').click(function(){
+				PlanetWars.init(vsName,vsFile,"IA 1nomable","ia/ia.js");
+			});
+
+			$('#genStat').click(nextMatch);
+
+			//autoplay
+			if(-1 != urlParam.search('auto')) {
+				partie = PlanetWars.init(vsName,vsFile,"IA 1nomable","ia/ia.js");
+				partie.start();
+			}
 		};
 		window.onload = init;
 		function nextMatch(r){
@@ -108,10 +171,12 @@
 					//victoires
 					nodeWinner = $('#victoires td').eq(winnerCol);
 					nodeWinner.text(parseInt(nodeWinner.text())+1)
+					nbrVictoires = parseInt(nodeWinner.text());
 
 					//victoires par type
 					if (r.message=='Vainqueur par KO') nodeWinner = $('#par-ko td').eq(winnerCol);
 					else if (r.message=='DUREE MAX ATTEINTE') nodeWinner = $('#par-limite-de-tour td').eq(winnerCol);
+					else if (r.message=='DUREE DU TOUR TROP LONGUE') nodeWinner = $('#par-lag td').eq(winnerCol);
 					else nodeWinner = $('#par-erreur-adverse td').eq(winnerCol);
 					nodeWinner.text(parseInt(nodeWinner.text())+1)
 
@@ -125,7 +190,7 @@
 
 					// score moyen
 					nodeWinner = $('#score-moyen td').eq(winnerCol);
-					moyen = Math.round((nodeWinner.text()*(numPartie-1)+score)/numPartie);
+					moyen = Math.round((nodeWinner.text()*(nbrVictoires-1)+score)/nbrVictoires);
 					nodeWinner.text(moyen)
 
 //					nodeLoser = $('#score-moyen td').eq(loserCol);
@@ -142,7 +207,7 @@
 
 					//tours-de-jeu-moyen
 					nodeWinner = $('#tours-de-jeu-moyen td').eq(winnerCol);
-					moyen = Math.round((nodeWinner.text()*(numPartie-1)+r.numTurn)/numPartie);
+					moyen = Math.round((nodeWinner.text()*(nbrVictoires-1)+r.numTurn)/nbrVictoires);
 					nodeWinner.text(moyen)
 
 					// nombre de planêtes
@@ -156,7 +221,7 @@
 
 					//moyenne
 					nodeWinner = $('#planetes-moyen td').eq(winnerCol);
-					moyen = Math.round((nodeWinner.text()*(numPartie-1)+galaxySize)/numPartie);
+					moyen = Math.round((nodeWinner.text()*(nbrVictoires-1)+galaxySize)/nbrVictoires);
 					nodeWinner.text(moyen)
 
 					// nombre de mini-planêtes
@@ -170,7 +235,7 @@
 
 					//moyenne
 					nodeWinner = $('#mini-planetes-moyen td').eq(winnerCol);
-					moyen = Math.round((nodeWinner.text()*(numPartie-1)+galaxyMiniPlanet)/numPartie);
+					moyen = Math.round((nodeWinner.text()*(nbrVictoires-1)+galaxyMiniPlanet)/nbrVictoires);
 					nodeWinner.text(moyen)
 
 				}
@@ -179,7 +244,7 @@
 				$('#progression').text(numPartie)
 				$('.trace').text('')
 
-				partie = PlanetWars.init("A détrôner","ia.js","IA 1nomable","ia/ia.js");
+				partie = PlanetWars.init(vsName,vsFile,"IA 1nomable","ia/ia.js");
 				nbrPlaneteMin = 5; // 5
 				nbrPlaneteMax = 10; // 10
 				gameSpeed = 2; // 500

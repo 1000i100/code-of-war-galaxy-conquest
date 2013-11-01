@@ -9,7 +9,7 @@ a = 'a' # propriétaire ami (nous)
 e = 'e' # propriétaire ennemi
 n = 'n' # propriétaire neutre
 futurMax = 13 # innutile d'aller plus loins dans le futur, il n'y aura rien de plus vu que les trajets les plus long fond 13 tours.
-
+leurres = false
 
 # constante de jeu connu :
 croissanceParTour = 5
@@ -76,9 +76,10 @@ getOrders = (context) ->
 					result.push new Order(myPlanet.id, target.id, populationGoal)
 
 				# armée de leurres
-#				for planet in context.content
-#					if planet != myPlanet
-#						result.push new Order( myPlanet.id, planet.id, 0 )
+				if leurres
+					for planet in context.content
+						if planet != myPlanet
+							result.push new Order( myPlanet.id, planet.id, 0 )
 
 	catch err
 		debugMessage += err
