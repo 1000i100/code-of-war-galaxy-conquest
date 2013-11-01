@@ -35,7 +35,41 @@
 			right: 0;
 			overflow: auto;
 		}
+		#stats {
+			position: fixed;
+			left: 800px;
+			top:30px;
+			bottom: 0;
+			right: 0;
+			overflow: auto;
+			color: #ddd;
+		}
+
 		</style>
+		<div id="stats">
+      <button id="makeStats">Générer les statistiques</button>
+      <table>
+      	<tr>
+      		<th id="progression">
+      		<th>IA
+      		<th>Moi
+      	<tr id="victoires"><td>victoires</td><td>0</td><td>0</td></tr>
+      	<tr id="par-ko"><td>par KO</td><td>0</td><td>0</td></tr>
+      	<tr id="par-limite-de-tour"><td>par limite de tour</td><td>0</td><td>0</td></tr>
+      	<tr id="par-erreur-adverse"><td>par erreur adverse</td><td>0</td><td>0</td></tr>
+      	<tr id="meilleur-score"><td>meilleur score</td><td>0</td><td>0</td></tr>
+      	<tr id="score-moyen"><td>score moyen</td><td>0</td><td>0</td></tr>
+      	<tr id="tours-de-jeu-min"><td>tours de jeu min</td><td>500</td><td>500</td></tr>
+      	<tr id="tours-de-jeu-moyen"><td>tours de jeu moyen</td><td>0</td><td>0</td></tr>
+      	<tr id="tours-de-jeu-max"><td>tours de jeu max</td><td>0</td><td>0</td></tr>
+      	<tr id="planetes-min"><td>planetes min</td><td>100</td><td>100</td></tr>
+      	<tr id="planetes-moyen"><td>planetes moyen</td><td>0</td><td>0</td></tr>
+      	<tr id="planetes-max"><td>planetes max</td><td>0</td><td>0</td></tr>
+      	<tr id="mini-planetes-min"><td>mini-planetes min</td><td>100</td><td>100</td></tr>
+      	<tr id="mini-planetes-moyen"><td>mini-planetes moyen</td><td>0</td><td>0</td></tr>
+      	<tr id="mini-planetes-max"><td>mini-planetes max</td><td>0</td><td>0</td></tr>
+      </table>
+		</div>
     <strong>DEBUG</strong><div id="haxe:trace" class="trace" />
 		<script src="js/jquery-1.9.0.min.js"></script>
 		<script src="js/bean.js"></script>
@@ -45,10 +79,112 @@
 		<script src="js/PlanetWarsHaxeJS.js"></script>
 		<script>
 		function init(){
-			//PlanetWars.init("A détrôner","ia.js","IA 1nomable","ia/ia.js");
-			PlanetWars.init("A détrôner","ia.js","IA 1nomable","ia/ia.js");
+			partie = PlanetWars.init("A détrôner","ia.js","IA 1nomable","ia/ia.js");
+			nbrPlaneteMin = 5; // 5
+			nbrPlaneteMax = 10; // 10
+			gameSpeed = 500; // 500
+			numPartie = 0
+			readyForNextMatch = true
+
+			$('#makeStats').click(nextMatch);
+
+			//partie.start();
 		};
 		window.onload = init;
+		function nextMatch(r){
+				if(!readyForNextMatch) return;
+				readyForNextMatch=false;
+				if (r.winner){
+
+					//mise à jour des stats
+					if (r.winner.id == r.p1.id) {
+						winnerCol = 1;
+						loserCol = 2;
+					} else {
+						winnerCol = 2;
+						loserCol = 1;
+					}
+
+					//victoires
+					nodeWinner = $('#victoires td').eq(winnerCol);
+					nodeWinner.text(parseInt(nodeWinner.text())+1)
+
+					//victoires par type
+					if (r.message=='Vainqueur par KO') nodeWinner = $('#par-ko td').eq(winnerCol);
+					else if (r.message=='DUREE MAX ATTEINTE') nodeWinner = $('#par-limite-de-tour td').eq(winnerCol);
+					else nodeWinner = $('#par-erreur-adverse td').eq(winnerCol);
+					nodeWinner.text(parseInt(nodeWinner.text())+1)
+
+					// score
+					if (winnerCol == 1) score = Math.round(r.playerOneScore / r.numTurn * 1000)
+					else score = Math.round(r.playerTwoScore / r.numTurn * 1000)
+
+					// meilleur score
+					nodeWinner = $('#meilleur-score td').eq(winnerCol);
+					if(nodeWinner.text()<score) nodeWinner.text(score);
+
+					// score moyen
+					nodeWinner = $('#score-moyen td').eq(winnerCol);
+					moyen = Math.round((nodeWinner.text()*(numPartie-1)+score)/numPartie);
+					nodeWinner.text(moyen)
+
+//					nodeLoser = $('#score-moyen td').eq(loserCol);
+//					moyen = Math.round((nodeLoser.text()*(numPartie-1))/numPartie);
+//					nodeLoser.text(moyen)
+
+					//tours-de-jeu-min
+					nodeWinner = $('#tours-de-jeu-min td').eq(winnerCol);
+					if(nodeWinner.text()>r.numTurn) nodeWinner.text(r.numTurn);
+
+					//tours-de-jeu-max
+					nodeWinner = $('#tours-de-jeu-max td').eq(winnerCol);
+					if(nodeWinner.text()<r.numTurn) nodeWinner.text(r.numTurn);
+
+					//tours-de-jeu-moyen
+					nodeWinner = $('#tours-de-jeu-moyen td').eq(winnerCol);
+					moyen = Math.round((nodeWinner.text()*(numPartie-1)+r.numTurn)/numPartie);
+					nodeWinner.text(moyen)
+
+					// nombre de planêtes
+					// min
+					nodeWinner = $('#planetes-min td').eq(winnerCol);
+					if(nodeWinner.text()>galaxySize) nodeWinner.text(galaxySize);
+
+					//max
+					nodeWinner = $('#planetes-max td').eq(winnerCol);
+					if(nodeWinner.text()<galaxySize) nodeWinner.text(galaxySize);
+
+					//moyenne
+					nodeWinner = $('#planetes-moyen td').eq(winnerCol);
+					moyen = Math.round((nodeWinner.text()*(numPartie-1)+galaxySize)/numPartie);
+					nodeWinner.text(moyen)
+
+					// nombre de mini-planêtes
+					// min
+					nodeWinner = $('#mini-planetes-min td').eq(winnerCol);
+					if(nodeWinner.text()>galaxyMiniPlanet) nodeWinner.text(galaxyMiniPlanet);
+
+					//max
+					nodeWinner = $('#mini-planetes-max td').eq(winnerCol);
+					if(nodeWinner.text()<galaxyMiniPlanet) nodeWinner.text(galaxyMiniPlanet);
+
+					//moyenne
+					nodeWinner = $('#mini-planetes-moyen td').eq(winnerCol);
+					moyen = Math.round((nodeWinner.text()*(numPartie-1)+galaxyMiniPlanet)/numPartie);
+					nodeWinner.text(moyen)
+
+				}
+				numPartie++
+				if(numPartie>10) return;
+				$('#progression').text(numPartie)
+				$('.trace').text('')
+
+				partie = PlanetWars.init("A détrôner","ia.js","IA 1nomable","ia/ia.js");
+				nbrPlaneteMin = 5; // 5
+				nbrPlaneteMax = 10; // 10
+				gameSpeed = 2; // 500
+				partie.start();
+		}
 		</script>
 	</body>
 </html>

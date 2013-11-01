@@ -1,6 +1,8 @@
 nbrPlaneteMin = 5; // 5
 nbrPlaneteMax = 10; // 10
 gameSpeed = 500; // 500
+galaxySize=0; // auto rempli, utilisé pour les score
+galaxyMiniPlanet=0;
 
 (function () { "use strict";
 function $extend(from, fields) {
@@ -37,6 +39,12 @@ PlanetWars.gameCompleteHandler = function(event) {
 		request.setParameter("score",Std.string(r.playerOneScore / r.numTurn * 1000));
 		request.request(true);
 	} else if(PlanetWars._saveURL != "") PlanetWars.redirect(1); else PlanetWars.redirect(0);
+	if(gameSpeed < 100) {
+		readyForNextMatch = true
+		setTimeout(function(){
+			nextMatch(r)
+		},100)
+	}
 }
 PlanetWars.redirect = function(playerStatus) {
 	if(PlanetWars._redirectURL != "") js.Browser.window.location.assign(PlanetWars._redirectURL + "?playerStatus=" + Std.string(playerStatus));
@@ -59,6 +67,7 @@ PlanetWars.init = function(firstPlayerName,firstPlayerScript,secondPlayerName,se
 	bean.on(com.tamina.planetwars.core.EventDispatcher.getInstance(),"gameComplete",PlanetWars.gameCompleteHandler);
 	PlanetWars._renderer.init(new com.tamina.planetwars.data.Player(firstPlayerName,16711680,firstPlayerScript),new com.tamina.planetwars.data.Player(secondPlayerName,65280,secondPlayerScript));
 	if(PlanetWars._saveURL != "") PlanetWars._renderer.start();
+	return PlanetWars._renderer
 }
 PlanetWars.log = function(v,inf) {
 	js.Browser.document.getElementById("haxe:trace").innerHTML += Std.string(v) + "<br/>";
@@ -189,6 +198,7 @@ com.tamina.planetwars.core.GameEngine.prototype = {
 		haxe.Log.trace("fin du match : joueur 1 = " + this.playerOneScore + "// joueur 2 = " + this.playerTwoScore,{ fileName : "GameEngine.hx", lineNumber : 259, className : "com.tamina.planetwars.core.GameEngine", methodName : "endBattle"});
 		haxe.Log.trace("battle duration " + (this._endBattleDate.getTime() - this._startBattleDate.getTime()) / 1000 + " sec",{ fileName : "GameEngine.hx", lineNumber : 260, className : "com.tamina.planetwars.core.GameEngine", methodName : "endBattle"});
 		bean.fire(com.tamina.planetwars.core.EventDispatcher.getInstance(),"gameComplete",[result]);
+		//GN
 	}
 	,parseOrder: function() {
 		var delta = Math.random() * 2 - 1;
@@ -206,9 +216,12 @@ com.tamina.planetwars.core.GameEngine.prototype = {
 		var playerOneNumUnits = 0;
 		var playerTwoNumUnits = 0;
 		var _g1 = 0, _g = this._galaxy.content.length;
+		galaxySize = _g;
+		galaxyMiniPlanet=0;
 		while(_g1 < _g) {
 			var i = _g1++;
 			var p = this._galaxy.content[i];
+			if (p.size == 1) galaxyMiniPlanet++;
 			if(p.owner == this._player1) {
 				this.playerOneScore += p.population;
 				playerOneNumUnits++;
@@ -738,7 +751,8 @@ com.tamina.planetwars.server.BattleRenderer.prototype = {
 		this.start();
 	}
 	,start: function() {
-		if(!this._engine.get_isComputing()) this._engine.getBattleResult(this._data.firstPlayerHome.owner,this._data.secondPlayerHome.owner,this._data,gameSpeed); else haxe.Log.trace("battle already started",{ fileName : "BattleRenderer.hx", lineNumber : 60, className : "com.tamina.planetwars.server.BattleRenderer", methodName : "start"});
+		if(!this._engine.get_isComputing()) this._engine.getBattleResult(this._data.firstPlayerHome.owner,this._data.secondPlayerHome.owner,this._data,gameSpeed);
+		else haxe.Log.trace("battle already started",{ fileName : "BattleRenderer.hx", lineNumber : 60, className : "com.tamina.planetwars.server.BattleRenderer", methodName : "start"});
 	}
 	,init: function(firstPlayer,secondPlayer) {
 		haxe.Log.trace("init battle",{ fileName : "BattleRenderer.hx", lineNumber : 46, className : "com.tamina.planetwars.server.BattleRenderer", methodName : "init"});

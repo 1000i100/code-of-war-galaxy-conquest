@@ -1,26 +1,26 @@
 # variable par défaut
-name = "IA 1nomable" # nom de l'IA
 color = 0 #  couleur d'affichage
 debugMessage="" # message de debugage utilisé par le systeme et affiché dans la trace à chaque tour du combat
 id = 0 # Id de l'IA
 
 # variable maison
 actualTurn = 0
+a = 'a' # propriétaire ami (nous)
+e = 'e' # propriétaire ennemi
+n = 'n' # propriétaire neutre
+futurMax = 13 # innutile d'aller plus loins dans le futur, il n'y aura rien de plus vu que les trajets les plus long fond 13 tours.
+
 
 # constante de jeu connu :
 croissanceParTour = 5
 
 
-###
-  @internal method
-###
 @onmessage = (event) ->
 	if event.data?
 		turnMessage = event.data
 		id = turnMessage.playerId
 		postMessage( new TurnResult( getOrders(turnMessage.galaxy), debugMessage) )
 	else postMessage("data null")
-
 
 ###
   Invoquée tous les tours pour recuperer la liste des ordres à exécuter.
@@ -29,7 +29,9 @@ croissanceParTour = 5
   @return result:Array<Order>
 ###
 getOrders = (context) ->
-	debugMessage='<br>Tour '+actualTurn
+	debugMessage='<br>Tour '+actualTurn+'<br>'
+	for p in context.content
+		debugMessage+=getOwner(p)+','
 	result = []
 	try
 		myPlanets = GameUtil.getPlayerPlanets( id, context )
@@ -74,12 +76,12 @@ getOrders = (context) ->
 					result.push new Order(myPlanet.id, target.id, populationGoal)
 
 				# armée de leurres
-				for planet in context.content
-					if planet != myPlanet
-						result.push new Order( myPlanet.id, planet.id, 0 )
+#				for planet in context.content
+#					if planet != myPlanet
+#						result.push new Order( myPlanet.id, planet.id, 0 )
 
-	catch e
-		debugMessage += e
+	catch err
+		debugMessage += err
 	actualTurn++
 	return result
 
@@ -117,6 +119,10 @@ planeteInXTurn = (planet, context, turn) ->
 		pop = Math.min(pop+croissanceParTour, PlanetPopulation.getMaxPopulation(pclone.size))
 	pclone.population = pop
 	return pclone
+getOwner = (element) ->
+	if element.owner.color == 13421772 then return n
+	if element.owner.id == id then return a
+	else return e
 
 getShipLandingTurn = (ship) ->
 	ship.creationTurn+ship.travelDuration
