@@ -102,6 +102,7 @@
 			readyForNextMatch = true
 
 			urlParam = window.location.href.split('?')[1];
+			if(!urlParam) urlParam = 'néant';
 
 			$('#oldBest').click(function(){vsName = $('#oldBest').text();
 				vsFile = 'ia.js'													;});
