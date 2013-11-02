@@ -42,4 +42,10 @@ garder comme objectif principal : à chaque tour, un max de planête doivent pro
 objectif 2 : à chaque tour, un minimum de plannêtes doivent produire pour l'ennemi
 choisir les cibles offensive sur ces critères.
 
+
+si j'ai l'avantage en nombre de planètes, maximiser les pertes adverses
+si il à l'avantage en nombre de planètes, minimiser mes pertes
+
+
+
 ###

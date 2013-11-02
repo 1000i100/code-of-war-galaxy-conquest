@@ -1,10 +1,5 @@
-# variable par défaut
-color = 0 #  couleur d'affichage
-debugMessage="" # message de debugage utilisé par le systeme et affiché dans la trace à chaque tour du combat
-id = 0 # Id de l'IA
-
 # variable maison
-actualTurn = 0
+tourActuel = 0
 a = 'a' # propriétaire ami (nous)
 e = 'e' # propriétaire ennemi
 n = 'n' # propriétaire neutre
@@ -13,370 +8,272 @@ leurres = false
 
 # constante de jeu connu :
 croissanceParTour = 5
+vitesseVaisseau = 60
 
+# variables globales
+color = 0 #  couleur d'affichage
+debugMessage="" # message de debugage utilisé par le systeme et affiché dans la trace à chaque tour du combat
+id = 0 # mon Identifiant
+
+orders = []
+galaxy = {}
 
 @onmessage = (event) ->
 	if event.data?
-		turnMessage = event.data
-		id = turnMessage.playerId
-		postMessage( new TurnResult( getOrders(turnMessage.galaxy), debugMessage) )
+		debugMessage='<br>Tour '+tourActuel+'<br>'
+		id = event.data.playerId
+		galaxy = event.data.galaxy
+		ajouterPopMaxAuxPlanetes()
+		orders = []
+		getOrders()
+		if leurres
+			debugMessage = friture()
+		postMessage( {orders:orders,consoleMessage:'<span style="color:white">'+debugMessage+'</span>',error:''})
+		tourActuel++
 	else postMessage("data null")
 
 ###
   Invoquée tous les tours pour recuperer la liste des ordres à exécuter.
   C'est la methode à modifier pour cabler son IA.
-  @param context:Galaxy
-  @return result:Array<Order>
+  @return res:Array<Order>
 ###
-getOrders = (context) ->
-	debugMessage='<br>Tour '+actualTurn+'<br>'
-	for p in context.content
-		debugMessage+=getOwner(p)+','
-	result = []
+getOrders = ->
 	try
-		myPlanets = GameUtil.getPlayerPlanets( id, context )
-		otherPlanets = GameUtil.getEnnemyPlanets(id, context)
+		myPlanets = mesPlanetes()
+		otherPlanets = planetesEnnemiEtNeutre()
 		if otherPlanets != null && otherPlanets.length > 0
 			for myPlanet in myPlanets
 
 				# cible facile
-				targets = getEasyPlanets(myPlanet,context,otherPlanets)
+				targets = getEasyPlanets(myPlanet,otherPlanets)
 				target = targets[Math.floor(Math.random()*targets.length)]
-				travelTime = GameUtil.getTravelNumTurn(myPlanet,target)
-				targetFutur = planeteInXTurn(target, context, travelTime)
-				populationGoal = 1 + planeteInXTurn(target, context, GameUtil.getTravelNumTurn(myPlanet,target)).population
+				travelTime = tourDeTrajet(myPlanet,target)
+				targetFutur = planeteInXTurn(target, travelTime)
+				populationGoal = 1 + planeteInXTurn(target, tourDeTrajet(myPlanet,target)).population
 				if myPlanet.population > populationGoal
-					result.push new Order( myPlanet.id, target.id, populationGoal )
-					myPlanet.population -= populationGoal
+					sendShip(myPlanet, target, populationGoal)
 
 				# évacuation anti trop plein
-				if planeteInXTurn(myPlanet, context, 1).population >= PlanetPopulation.getMaxPopulation(myPlanet.size)
-					target = getEasyestPlanet(myPlanet,context,otherPlanets)
-					populationGoal = Math.min(myPlanet.population, 1 + planeteInXTurn(target, context, GameUtil.getTravelNumTurn(myPlanet,target)).population)
-					result.push new Order(myPlanet.id, target.id, populationGoal)
-					myPlanet.population -= populationGoal
+				if planeteInXTurn(myPlanet, 1).population >= myPlanet.maxPop
+					target = getEasyestPlanet(myPlanet,therPlanets)
+					populationGoal = Math.min(myPlanet.population, 1 + planeteInXTurn(target, tourDeTrajet(myPlanet,target)).population)
+					sendShip(myPlanet, target, populationGoal)
 
 				# évacuation pro saturation adverse
 				# si vaisseau adverse arrive au prochain tour et que le bilan de population de tous les vaisseau en route vers la planète à un solde en faveur de l'ennemi > popMax
 				# alors évacuer vers la destination la plus proche convertible ou amie (plusieurs vaisseaux en cas de saturation)
-				ennemisEnRoute = getShipGoingTo myPlanet, GameUtil.getEnnemyFleets(id,context)
-				landNextTurn = false
-				for ship in ennemisEnRoute
-					landNextTurn=true if 1 == getShipLandingTurn(ship)-actualTurn
-				if landNextTurn
+				ennemisEnRoute = vaisseauxEnApprocheDe myPlanet, vaisseauxEnnemi()
+				if vaisseauxQuiArrivent(tourActuel,ennemisEnRoute).length # tourActuel pourrais être remplacé par tourActuel+1 pour partir le tour précédent l'attaque et non le tour même GN
+					enApproche = vaisseauxEnApprocheDe myPlanet
+
 					puissanceAdverse = 0
 					for ship in ennemisEnRoute
 						puissanceAdverse += ship.crew
-					if puissanceAdverse > PlanetPopulation.getMaxPopulation(myPlanet.size)
-						result = evacTotal(myPlanet, context, result)
+					if puissanceAdverse > myPlanet.maxPop
+						evacTotal myPlanet
 
-				if planeteInXTurn(myPlanet, context, 1).population >= PlanetPopulation.getMaxPopulation(myPlanet.size)
-					target = getEasyestPlanet(myPlanet,context,otherPlanets)
-					populationGoal = Math.min(myPlanet.population, 1 + planeteInXTurn(target, context, GameUtil.getTravelNumTurn(myPlanet,target)).population)
-					result.push new Order(myPlanet.id, target.id, populationGoal)
+				if planeteInXTurn(myPlanet, 2).population >= myPlanet.maxPop
+					target = getEasyestPlanet(myPlanet,otherPlanets)
+					populationGoal = Math.min(myPlanet.population, 1 + planeteInXTurn(target, tourDeTrajet(myPlanet,target)).population)
+					sendShip(myPlanet, target, populationGoal)
 
 				# armée de leurres
 				if leurres
-					for planet in context.content
+					for planet in galaxy.content
 						if planet != myPlanet
-							result.push new Order( myPlanet.id, planet.id, 0 )
+							sendShip(myPlanet, planet, 0)
 
 	catch err
 		debugMessage += err
-	actualTurn++
-	return result
 
-evacTotal = (myPlanet, context, result) ->
+sendShip = (source, target, population) ->
+	orders.push {sourceID:source.id,targetID:target.id,numUnits:population} #new Order
+	if population
+		galaxy.fleet.push(new Ship(population,source,target,tourActuel))
+		source.population -= population
+
+vaisseauxQuiArrivent = (tour,candidats=galaxy.fleet)->
+	res = []
+	for ship in candidats
+		res.push(ship) if tour == tourArriveCible(ship)
+	return res
+
+evacTotal = (myPlanet) ->
 	# TODO : orderByDistance
-	target = getNearestPlanet myPlanet, context.content
-	result.push new Order(myPlanet.id, target.id, myPlanet.population)
-	return result
-
+	target = getNearestPlanet myPlanet, planetesEnnemi()
+	sendShip(myPlanet, target, myPlanet.population) if myPlanet.population
 
 naturalPopInXTurn = (planet, turn) ->
-	Math.min(planet.population + turn*croissanceParTour, PlanetPopulation.getMaxPopulation(planet.size))
+	Math.min(planet.population + turn*croissanceParTour, planet.maxPop)
 
-planeteInXTurn = (planet, context, turn) ->
-	pclone =
-		size: planet.size
-		population: planet.population
-		owner: planet.owner
-		id: planet.id
-		x: planet.x
-		y: planet.y
-		ref: planet
-	pop = pclone.population-5
-	fleet = getShipGoingTo pclone.ref, context.fleet
+bilanHumain = (planete, tour=futurMax)->
+	pclone = clonerPlanete planete
+	vaisseauxEnApproche = vaisseauxEnApprocheDe pclone.ref
+	res =
+		mesPertes: 0
+		pertesEnnemi:0
+		maProd:0
+		prodEnnemi:0
+	#ce tour
+	maPopAvant = 0
+	popEnnemiAvant = 0
+
+	maintenant = tourActuel
+	vaisseauxATraiter = vaisseauxQuiArrivent maintenant, vaisseauxEnApproche
+	#for v in vaisseauxATraiter
+		#ajouter les pop, calculer comparer les pop avant et après
+
+	return res
+
+clonerPlanete = (planete)->
+	res =
+		size: planete.size
+		population: planete.population
+		maxPop: populationMax planete
+		owner: planete.owner
+		id: planete.id
+		x: planete.x
+		y: planete.y
+		ref: planete
+planeteInXTurn = (planet, turn) ->
+	pclone = clonerPlanete planet
+	pop = pclone.population-5 # pour compenser fait de boucler en commençant à 0 (pour prendre en compte les vaisseau envoyé ce tour-ci)
+	fleet = vaisseauxEnApprocheDe pclone.ref
 	for t in [0..turn]
 		for s in fleet
-			if getShipLandingTurn(s) == actualTurn+t
+			if tourArriveCible(s) == tourActuel+t
 				if s.owner == pclone.owner
-					pop = Math.min(pop+s.crew, PlanetPopulation.getMaxPopulation(pclone.size))
+					pop = Math.min(pop+s.crew, pclone.maxPop)
 				else
 					pop = pop-s.crew
 					if pop<0
 						pop = -pop
 						pclone.owner = s.owner
-		pop = Math.min(pop+croissanceParTour, PlanetPopulation.getMaxPopulation(pclone.size))
+		pop = Math.min(pop+croissanceParTour, pclone.maxPop)
 	pclone.population = pop
 	return pclone
-getOwner = (element) ->
-	if element.owner.color == 13421772 then return n
-	if element.owner.id == id then return a
-	else return e
 
-getShipLandingTurn = (ship) ->
+tourArriveCible = (ship) ->
 	ship.creationTurn+ship.travelDuration
-getShipGoingTo = (planet, candidats) ->
-	result = []
-	for s in candidats
-		if s.target == planet
-			result.push s
-	return result
+vaisseauxEnApprocheDe = (planet, candidats=galaxy.fleet) ->
+	res = []
+	for ship in candidats
+		if ship.target == planet
+			res.push ship
+	return res
 
 
 getNearestPlanet = (source, candidats) ->
-	result = candidats[ 0 ]
-	currentDist = GameUtil.getDistanceBetween( new Point( source.x, source.y ), new Point( result.x, result.y ) )
+	res = candidats[ 0 ]
+	currentDist = distanceEntre( source, res )
 	for element in candidats
-		dist = GameUtil.getDistanceBetween( new Point( source.x, source.y ), new Point( element.x, element.y ) )
-		if  currentDist > dist
+		dist = distanceEntre( source, element )
+		if  currentDist > dist and dist>0
 			currentDist = dist
-			result = element
-	return result
+			res = element
+	return res
 
-getEasyestPlanet = (source, context, candidats) ->
-	candidats = context.content if !candidats
-	result = candidats[0]
-	travelTime = GameUtil.getTravelNumTurn(source,candidats[0])
-	pl = planeteInXTurn(result, context, travelTime)
-	if pl.owner == result.owner
+getEasyestPlanet = (source, candidats) ->
+	candidats = galaxy.content if !candidats
+	res = candidats[0]
+	travelTime = tourDeTrajet(source,candidats[0])
+	pl = planeteInXTurn(res, travelTime)
+	if pl.owner == res.owner
 		minDifficulty = pl.population
 	else
 		minDifficulty = 9999
 	for element in candidats
-		travelTime = GameUtil.getTravelNumTurn(source,element)
-		pl = planeteInXTurn(element, context, travelTime)
+		travelTime = tourDeTrajet(source,element)
+		pl = planeteInXTurn(element, travelTime)
 		if pl.owner == element.owner
 			difficulty = pl.population
 		else
 			difficulty = 9999
 		if minDifficulty > difficulty
 			minDifficulty = difficulty
-			result = element
-	return result
+			res = element
+	return res
 
-getEasyPlanets = (source, context, candidats) ->
-	easyest = getEasyestPlanet(source, context, candidats)
-	travelTime = GameUtil.getTravelNumTurn(source,easyest)
-	pl = planeteInXTurn(easyest, context, travelTime)
+getEasyPlanets = (source, candidats) ->
+	easyest = getEasyestPlanet(source, candidats)
+	travelTime = tourDeTrajet(source,easyest)
+	pl = planeteInXTurn(easyest, travelTime)
 	if pl.owner == easyest.owner
 		minDifficulty = pl.population
 	else
 		minDifficulty = 9999
-	result = []
+	res = []
 	for element in candidats
-		travelTime = GameUtil.getTravelNumTurn(source,element)
-		pl = planeteInXTurn(element, context, travelTime)
+		travelTime = tourDeTrajet(source,element)
+		pl = planeteInXTurn(element, travelTime)
 		if pl.owner == element.owner
 			difficulty = pl.population
 		else
 			difficulty = 9999
 		if difficulty <= minDifficulty+10
-			result.push element
-	return result
+			res.push element
+	return res
 
-
-###
-  @model Galaxy
-  @param width:Number largeur de la galaxy
-  @param height:Number hauteur de la galaxy
-###
-class Galaxy
-	constructor: (@width,@height) ->
-		###contenu : liste Planet###
-		@content = []
-		###flote : liste de Ship###
-		@fleet = []
-
-
-###
-  @model Range
-  @param from:Number début de l'intervale
-  @param to:Number fin de l'intervale
-###
-class Range
-	constructor: (@from,@to) ->
-
-
-###
-  @model Order
-  @param sourceID:Number id de la planete d'origine
-  @param targetID:Number id de la planete cible
-  @param numUnits:Number nombre d'unité à déplacer
-###
-class Order
-	constructor: (@sourceID,@targetID,@numUnits) ->
-
-###
-  @model Planet
-  @param x:Number position en x
-  @param y:Number position en y
-  @param size:Number taille
-  @param owner:Player proprietaire
-###
-class Planet
-	constructor: (@x,@y,@size,@owner) ->
-		### population###
-		@population = PlanetPopulation.getDefaultPopulation(size);
-		### id ###
-		@id = UID.get();
-
-
-###
-  @model Ship
-  @param crew:Number equipage
-  @param source:Planet origine
-  @param target:Planet cible
-  @param creationTurn:Number numero du tour de creation du vaisseau
-###
 class Ship
 	constructor: (@crew,@source,@target,@creationTurn) ->
-		### proprietaire du vaisseau###
 		@owner = source.owner;
-		### duree du voyage en nombre de tour###
-		@travelDuration = Math.ceil(GameUtil.getDistanceBetween(new Point(source.x,source.y),new Point(target.x,target.y)) / Game.SHIP_SPEED);
+		@travelDuration = Math.ceil(distanceEntre(source,target) / vitesseVaisseau);
 
-###
-  @internal model
-###
-class TurnMessage
-	constructor: (@playerId,@galaxy) ->
-
-###
-  @internal model
-###
-class TurnResult
-	constructor: (@orders,@consoleMessage = "") ->
-		@error = ""
-
-###
-  @model Point
-  @param x:Number
-  @param y:Number
-###
-class Point
-	constructor: (@x,@y) ->
-
-###
-  Classe utilitaire
-###
-class GameUtil
-	###
-	  @param p1:Point
-	  @param p2:Point
-	  @return result:Number la distance entre deux points
-	###
-	@getDistanceBetween : (p1,p2) ->
-		Math.sqrt(Math.pow(p2.x - p1.x,2) + Math.pow(p2.y - p1.y,2))
-
-	###
-	  @param planetOwnerId:Number
-	  @param context:Galaxy
-	  @return result:Array<Planet> la liste des planetes appartenants à un joueur en particulier
-	###
-	@getPlayerPlanets: (planetOwnerId,context) ->
-		result = []
-		for p in context.content
-			if p.owner.id == planetOwnerId
-				result.push p
-		return result
-	###
-	 @param planetOwnerId:Number
-	 @param context:Galaxy
-	 @return result:Array<Planet> la liste des planetes ennemies et neutres
-	###
-	@getEnnemyPlanets : (planetOwnerId,context) ->
-		result = []
-		for p in context.content
-			if p.owner.id != planetOwnerId
-				result.push p
-		return result
-
-	@getEnnemyFleets : (playerId,context) ->
-		result = []
-		for s in context.fleet
-			if s.owner.id != playerId
-				result.push s
-		return result
-
-	@getMyFleets : (playerId,context) ->
-		result = []
-		for s in context.fleet
-			if s.owner.id == playerId
-				result.push s
-		return result
-
-	@getTravelNumTurn : (source,target) ->
-		return Math.ceil(GameUtil.getDistanceBetween(new Point(source.x,source.y),new Point(target.x,target.y)) / Game.SHIP_SPEED)
+diplomacie = (element) ->
+	if element.owner.color == 13421772 then return n
+	if element.owner.id == id then return a
+	else return e
+mesPlanetes=(candidats=galaxy.content)->
+	res = []
+	for p in candidats
+		if diplomacie(p) == a
+			res.push p
+	return res
+planetesEnnemi=(candidats=galaxy.content)->
+	res = []
+	for p in candidats
+		if diplomacie(p) == e
+			res.push p
+	return res
+planetesNeutre=(candidats=galaxy.content)->
+	res = []
+	for p in candidats
+		if diplomacie(p) == n
+			res.push p
+	return res
+planetesEnnemiEtNeutre=(candidats=galaxy.content)->
+	res = []
+	for p in candidats
+		if diplomacie(p) != a
+			res.push p
+	return res
+mesVaisseaux = (candidats=galaxy.fleet)->
+	res = []
+	for s in candidats
+		if s.owner.id == id and s.crew>0
+			res.push s
+	return res
+vaisseauxEnnemi = (candidats=galaxy.fleet)->
+	res = []
+	for s in candidats
+		if s.owner.id != id and s.crew>0
+			res.push s
+	return res
+tourDeTrajet = (source,target) ->
+	Math.ceil(distanceEntre(source,target) / vitesseVaisseau)
+distanceEntre = (source,target) ->
+	Math.sqrt(Math.pow(target.x - source.x,2) + Math.pow(target.y - source.y,2))
 
 
+ajouterPopMaxAuxPlanetes = ->
+	for p in galaxy.content
+		p.maxPop = populationMax p
+populationMax = (planet) ->	Math.max(50,(planet.size-1)*100)
 
-
-
-
-###
-  Classe utilitaire
-  @internal
-###
-class UID
-	@lastUID : 0
-	@get : () ->
-		UID.lastUID++
-		return UID.lastUID
-
-
-###
-  Constantes
-###
-class Game
-	@DEFAULT_PLAYER_POPULATION : 100;
-	@NUM_PLANET : new Range(5,10);
-	@PLANET_GROWTH : 5;
-	@SHIP_SPEED : 60;
-	@GAME_SPEED : 500;
-	@GAME_DURATION : 240;
-	@GAME_MAX_NUM_TURN : 500;
-
-class PlanetPopulation
-	@DEFAULT_SMALL : 20;
-	@DEFAULT_NORMAL : 30;
-	@DEFAULT_BIG : 40;
-	@DEFAULT_HUGE : 50;
-	@MAX_SMALL : 50;
-	@MAX_NORMAL : 100;
-	@MAX_BIG : 200;
-	@MAX_HUGE : 300;
-	@getMaxPopulation : (planetSize) ->
-		result = 1
-		switch planetSize
-			when PlanetSize.SMALL then result = PlanetPopulation.MAX_SMALL
-			when PlanetSize.NORMAL then result = PlanetPopulation.MAX_NORMAL
-			when PlanetSize.BIG then result = PlanetPopulation.MAX_BIG
-			when PlanetSize.HUGE then result = PlanetPopulation.MAX_HUGE
-		return result
-
-	@getDefaultPopulation : (planetSize) ->
-		result = 1;
-		switch planetSize
-			when PlanetSize.SMALL then result = PlanetPopulation.DEFAULT_SMALL
-			when PlanetSize.NORMAL then result = PlanetPopulation.DEFAULT_NORMAL
-			when PlanetSize.BIG then result = PlanetPopulation.DEFAULT_BIG
-			when PlanetSize.HUGE then result = PlanetPopulation.DEFAULT_HUGE
-		return result
-
-class PlanetSize
-	@SMALL : 1
-	@NORMAL : 2
-	@BIG : 3
-	@HUGE : 4
+friture = ->
+	nbrChr = 140
+	chrAutorise = '#?!§*$£¤&@%µ#!¤#'
+	res = ''
+	for i in [0..nbrChr]
+		res+=chrAutorise.substr(Math.floor(Math.random()*chrAutorise.length),1)
+	return res
