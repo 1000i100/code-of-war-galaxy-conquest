@@ -1,11 +1,10 @@
 # variable maison
-# IA antiJeu / réactive
 tourActuel = 0
 a = 'a' # propriétaire ami (nous)
 e = 'e' # propriétaire ennemi
 n = 'n' # propriétaire neutre
 futurMax = 13 # innutile d'aller plus loins dans le futur, il n'y aura rien de plus vu que les trajets les plus long fond 13 tours.
-leurres = true
+leurres = false
 
 # constante de jeu connu :
 croissanceParTour = 5
@@ -40,83 +39,55 @@ galaxy = {}
 ###
 getOrders = ->
 	try
-		flottesAdverse = vaisseauxEnnemi()
-		if flottesAdverse.length > 0
-			for vaisseau in flottesAdverse
-				target = vaisseau.target
-				myPlanet = getNearestPlanet target, mesPlanetes()
-				tempsNecessaire = tourDeTrajet myPlanet, target
-				tempsDispo = tourArriveCible(vaisseau)-tourActuel
-				if tempsNecessaire >= tempsDispo and tourActuel < 10
-					# contrer
-					targetFutur = planeteInXTurn(target, tempsNecessaire)
-					if e == diplomacie targetFutur
-						populationGoal = 1 + targetFutur.population
-						if myPlanet.population > populationGoal
-							sendShip(myPlanet, target, populationGoal)
-				if tempsNecessaire >= tempsDispo and tempsNecessaire-3 <= tempsDispo
-					# contrer
-					targetFutur = planeteInXTurn(target, tempsNecessaire)
-					if e == diplomacie targetFutur
-						populationGoal = 1 + targetFutur.population
-						if myPlanet.population > populationGoal
-							sendShip(myPlanet, target, populationGoal)
-		# armée de leurres
-#		if leurres
-#			myPlanets = mesPlanetes()
-#			for myPlanet in myPlanets
-#				for planet in galaxy.content
-#					if planet != myPlanet
-#						sendShip(myPlanet, planet, 0)
+		myPlanets = mesPlanetes()
+		otherPlanets = planetesEnnemiEtNeutre()
+		if otherPlanets != null && otherPlanets.length > 0
+			for myPlanet in myPlanets
 
-		if tourActuel < 3
-			return 0
-		else
-			myPlanets = mesPlanetes()
-			if tourActuel < 20
-				otherPlanets = planetesEnnemi()
-			else
-				otherPlanets = planetesEnnemiEtNeutre()
-			if otherPlanets != null && otherPlanets.length > 0
-				for myPlanet in myPlanets
+				# cible facile
+				targets = getEasyPlanets(myPlanet,otherPlanets)
+				target = targets[Math.floor(Math.random()*targets.length)]
+				travelTime = tourDeTrajet(myPlanet,target)
+				targetFutur = planeteInXTurn(target, travelTime)
+				populationGoal = 1 + planeteInXTurn(target, tourDeTrajet(myPlanet,target)).population
+				if myPlanet.population > populationGoal
+					sendShip(myPlanet, target, populationGoal)
 
-					# cible facile
-					targets = getEasyPlanets(myPlanet,otherPlanets)
-					target = targets[Math.floor(Math.random()*targets.length)]
-					travelTime = tourDeTrajet(myPlanet,target)
-					targetFutur = planeteInXTurn(target, travelTime)
-					populationGoal = 1 + planeteInXTurn(target, tourDeTrajet(myPlanet,target)).population
-					if myPlanet.population > populationGoal
-						sendShip(myPlanet, target, populationGoal)
+				# évacuation anti trop plein
+				if planeteInXTurn(myPlanet, 1).population >= myPlanet.maxPop
+					target = getEasyestPlanet(myPlanet,therPlanets)
+					populationGoal = Math.min(myPlanet.population, 1 + planeteInXTurn(target, tourDeTrajet(myPlanet,target)).population)
+					sendShip(myPlanet, target, populationGoal)
 
-					# évacuation anti trop plein
-					if planeteInXTurn(myPlanet, 1).population >= myPlanet.maxPop
-						target = getEasyestPlanet(myPlanet,planetesEnnemi())
-						populationGoal = Math.min(myPlanet.population, 1 + planeteInXTurn(target, tourDeTrajet(myPlanet,target)).population)
-						sendShip(myPlanet, target, populationGoal)
+				# évacuation pro saturation adverse
+				# si vaisseau adverse arrive au prochain tour et que le bilan de population de tous les vaisseau en route vers la planète à un solde en faveur de l'ennemi > popMax
+				# alors évacuer vers la destination la plus proche convertible ou amie (plusieurs vaisseaux en cas de saturation)
+				ennemisEnRoute = vaisseauxEnApprocheDe myPlanet, vaisseauxEnnemi()
+				if vaisseauxQuiArrivent(tourActuel,ennemisEnRoute).length # tourActuel pourrais être remplacé par tourActuel+1 pour partir le tour précédent l'attaque et non le tour même GN
+					enApproche = vaisseauxEnApprocheDe myPlanet
+					bilanBase = bilanHumain myPlanet
+					pclone = clonerPlanete myPlanet
+					pclone.population = 0
+					bilanAvecEvac = bilanHumain pclone
+					perteSupplementaireEnnemi = bilanAvecEvac.pertesEnnemi - bilanBase.pertesEnnemi
+					mesPerteSupplementaire = bilanAvecEvac.mesPertes - bilanBase.mesPertes
+					bilan = perteSupplementaireEnnemi - mesPerteSupplementaire
+					debugMessage += '<span class="bilan">'+bilan+' perteEnnemi:'+perteSupplementaireEnnemi+' mesPertes:'+mesPerteSupplementaire+'</span>'
+					debugMessage += '<br/><span class="bilan">'+bilanBase.maProd+'->'+bilanAvecEvac.maProd+'</span>'
+					if bilan>0
+						evacTotal myPlanet
 
-					# évacuation pro saturation adverse
-					# si vaisseau adverse arrive au prochain tour et que le bilan de population de tous les vaisseau en route vers la planète à un solde en faveur de l'ennemi > popMax
-					# alors évacuer vers la destination la plus proche convertible ou amie (plusieurs vaisseaux en cas de saturation)
-					ennemisEnRoute = vaisseauxEnApprocheDe myPlanet, vaisseauxEnnemi()
-					if vaisseauxQuiArrivent(tourActuel,ennemisEnRoute).length # tourActuel pourrais être remplacé par tourActuel+1 pour partir le tour précédent l'attaque et non le tour même GN
-						enApproche = vaisseauxEnApprocheDe myPlanet
-						bilanBase = bilanHumain myPlanet
-						pclone = clonerPlanete myPlanet
-						pclone.population = 0
-						bilanAvecEvac = bilanHumain pclone
-						perteSupplementaireEnnemi = bilanAvecEvac.pertesEnnemi - bilanBase.pertesEnnemi
-						mesPerteSupplementaire = bilanAvecEvac.mesPertes - bilanBase.mesPertes
-						bilan = perteSupplementaireEnnemi - mesPerteSupplementaire
-						debugMessage += '<span class="bilan">'+bilan+' perteEnnemi:'+perteSupplementaireEnnemi+' mesPertes:'+mesPerteSupplementaire+'</span>'
-						debugMessage += '<br/><span class="bilan">'+bilanBase.maProd+'->'+bilanAvecEvac.maProd+'</span>'
-						if bilan>0
-							evacTotal myPlanet
+				if planeteInXTurn(myPlanet, 2).population >= myPlanet.maxPop
+					target = getEasyestPlanet(myPlanet,otherPlanets)
+					populationGoal = Math.min(myPlanet.population, 1 + planeteInXTurn(target, tourDeTrajet(myPlanet,target)).population)
+					sendShip(myPlanet, target, populationGoal)
 
-					if planeteInXTurn(myPlanet, 2).population >= myPlanet.maxPop
-						target = getEasyestPlanet(myPlanet,otherPlanets)
-						populationGoal = Math.min(myPlanet.population, 1 + planeteInXTurn(target, tourDeTrajet(myPlanet,target)).population)
-						sendShip(myPlanet, target, populationGoal)
+				# armée de leurres
+				if leurres
+					for planet in galaxy.content
+						if planet != myPlanet
+							sendShip(myPlanet, planet, 0)
+
 	catch err
 		debugMessage += err
 

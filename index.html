@@ -44,16 +44,24 @@
 			overflow: auto;
 			color: #ddd;
 		}
-
+		.bilan {
+/*			position: fixed;
+			bottom: 0;
+			right: 0;
+			background-color: #ddd;			
+*/			color: #080;			
+		}
 		</style>
 		<div id="stats">
       VS <button id="oldBest">Ancien Champion</button>
       <button id="inactive">IA inactive</button>
       <button id="basique">IA basique</button>
-      <button id="flood">IA flood</button>
+<!--      <button id="flood">IA flood</button>
       <button id="defensive">IA défensive</button>
       <button id="agressive">IA agressive</button>
-      <button id="predictive">IA prédictive</button>
+      <button id="predictive">IA prédictive</button>-->
+      <button id="HAL9000">HAL9000</button>
+      <button id="jarvis">ARCA-Jarvis</button>
      	<br>
 			<button id="planetClassique">5 à 10 planètes (classique)</button>
 			<button id="planet20">20 planètes</button>
@@ -118,6 +126,10 @@
 				vsFile = 'otherIA/ia5agressive.js'				;});
 			$('#predictive').click(function(){vsName = $('#predictive').text();
 				vsFile = 'otherIA/ia10hardPredictive.js'	;});
+			$('#HAL9000').click(function(){vsName = $('#HAL9000').text();
+				vsFile = 'otherIA/HAL9000.js'	;});
+			$('#jarvis').click(function(){vsName = $('#jarvis').text();
+				vsFile = 'otherIA/jarvis.js'	;});
 
 			if(-1 != urlParam.search('oldBest')) $('#oldBest').click();
 			if(-1 != urlParam.search('inactive')) $('#inactive').click();
