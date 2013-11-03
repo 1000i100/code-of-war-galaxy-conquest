@@ -5,7 +5,7 @@ a = 'a' # propriétaire ami (nous)
 e = 'e' # propriétaire ennemi
 n = 'n' # propriétaire neutre
 futurMax = 13 # innutile d'aller plus loins dans le futur, il n'y aura rien de plus vu que les trajets les plus long fond 13 tours.
-leurres = true
+leurres = false
 
 # constante de jeu connu :
 croissanceParTour = 5
