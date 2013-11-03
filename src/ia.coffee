@@ -62,12 +62,12 @@ getOrders = ->
 						if myPlanet.population > populationGoal
 							sendShip(myPlanet, target, populationGoal)
 		# armée de leurres
-#		if leurres
-#			myPlanets = mesPlanetes()
-#			for myPlanet in myPlanets
-#				for planet in galaxy.content
-#					if planet != myPlanet
-#						sendShip(myPlanet, planet, 0)
+		if leurres
+			myPlanets = mesPlanetes()
+			for myPlanet in myPlanets
+				for planet in galaxy.content
+					if planet != myPlanet
+						sendShip(myPlanet, planet, 0)
 
 		if tourActuel < 3
 			return 0
